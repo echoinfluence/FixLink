@@ -1,0 +1,229 @@
+﻿@page "/providers"
+@using System.Net.Http.Json
+@using System.Text.Json
+@inject IHttpClientFactory HttpClientFactory
+
+<PageTitle>Find a Provider | FixLink</PageTitle>
+
+<div class="providers-page">
+
+    <section class="providers-heading">
+        <span class="section-eyebrow">THE FIXLINK DIRECTORY</span>
+        <h1>Find a trusted <span>local professional.</span></h1>
+        <p>
+            Browse local service providers and find the right
+            professional for your next job.
+        </p>
+    </section>
+
+    <section class="directory-section">
+
+        <div class="directory-toolbar">
+            <div>
+                <h2>Service providers</h2>
+                <p>
+                    @if (isLoading)
+                    {
+                        <span>Loading providers...</span>
+                    }
+                    else
+                    {
+                        <span>@filteredProviders.Count provider(s) found</span>
+                    }
+                </p>
+            </div>
+
+            <div class="search-box">
+                <span>⌕</span>
+                <input type="search"
+                       placeholder="Search by business or location..."
+                       @bind="searchTerm"
+                       @bind:event="oninput" />
+            </div>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="directory-message">
+                <div class="loading-spinner"></div>
+                <p>Finding local professionals...</p>
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="directory-message error-message">
+                <h3>We couldn't load the providers</h3>
+                <p>@errorMessage</p>
+                <button class="retry-button" @onclick="LoadProviders">
+                    Try again
+                </button>
+            </div>
+        }
+        else if (filteredProviders.Count == 0)
+        {
+            <div class="directory-message">
+                <h3>No providers found</h3>
+                <p>Try another business name or location.</p>
+            </div>
+        }
+        else
+        {
+            <div class="provider-grid">
+                @foreach (var provider in filteredProviders)
+                {
+                    <article class="provider-card" @key="provider.Id">
+
+                        <div class="provider-card-top">
+                            <div class="provider-avatar">
+                                @GetInitials(provider.BusinessName)
+                            </div>
+
+                            @if (provider.IsVerified)
+                            {
+                                <span class="verified-badge">
+                                    ✓ Verified
+                                </span>
+                            }
+                        </div>
+
+                        <div class="provider-card-body">
+                            <h3>@provider.BusinessName</h3>
+
+                            <p class="provider-location">
+                                <span>⌖</span>
+                                @FormatLocation(provider)
+                            </p>
+
+                            <p class="provider-description">
+                                @(string.IsNullOrWhiteSpace(provider.Description)
+                                    ? "Contact this provider to learn more about their services."
+                                    : provider.Description)
+                            </p>
+
+                            @if (provider.Services.Count > 0)
+                            {
+                                <div class="provider-services">
+                                    @foreach (var service in provider.Services.Take(3))
+                                    {
+                                        <span class="service-tag" @key="service.Id">
+                                            @service.Name
+                                        </span>
+                                    }
+                                </div>
+                            }
+                        </div>
+
+                        <div class="provider-card-footer">
+                            <a class="contact-button"
+                               href="@($"/providers/{provider.Id}")">
+                                View provider
+                            </a>
+                        </div>
+
+                    </article>
+                }
+            </div>
+        }
+
+    </section>
+</div>
+
+@code {
+    private List<ProviderCard> providers = new();
+    private string searchTerm = string.Empty;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    private List<ProviderCard> filteredProviders =>
+        providers
+            .Where(p =>
+                string.IsNullOrWhiteSpace(searchTerm) ||
+                p.BusinessName.Contains(searchTerm,
+                    StringComparison.OrdinalIgnoreCase) ||
+                p.City.Contains(searchTerm,
+                    StringComparison.OrdinalIgnoreCase) ||
+                p.Suburb.Contains(searchTerm,
+                    StringComparison.OrdinalIgnoreCase) ||
+                p.Services.Any(s =>
+                    s.Name.Contains(searchTerm,
+                        StringComparison.OrdinalIgnoreCase) ||
+                    s.CategoryName.Contains(searchTerm,
+                        StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProviders();
+    }
+
+    private async Task LoadProviders()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient();
+            client.BaseAddress = new Uri("https://localhost:7042/");
+
+            var result = await client.GetFromJsonAsync<List<ProviderCard>>(
+                "api/providers");
+
+            providers = result ?? new List<ProviderCard>();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                "Please check that the FixLink API is running. " +
+                "Details: " + ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private static string GetInitials(string? businessName)
+    {
+        if (string.IsNullOrWhiteSpace(businessName))
+            return "F";
+
+        return string.Join("",
+            businessName.Split(' ',
+                StringSplitOptions.RemoveEmptyEntries)
+                .Take(2)
+                .Select(word => char.ToUpperInvariant(word[0])));
+    }
+
+    private static string FormatLocation(ProviderCard provider)
+    {
+        var parts = new[] { provider.Suburb, provider.City }
+            .Where(part => !string.IsNullOrWhiteSpace(part));
+
+        var location = string.Join(", ", parts);
+
+        return string.IsNullOrWhiteSpace(location)
+            ? provider.Province
+            : location;
+    }
+
+    public class ProviderCard
+    {
+        public Guid Id { get; set; }
+        public string BusinessName { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
+        public string Suburb { get; set; } = string.Empty;
+        public string City { get; set; } = string.Empty;
+        public string Province { get; set; } = string.Empty;
+        public bool IsVerified { get; set; }
+        public List<ServiceCard> Services { get; set; } = new();
+    }
+
+    public class ServiceCard
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string CategoryName { get; set; } = string.Empty;
+    }
+}

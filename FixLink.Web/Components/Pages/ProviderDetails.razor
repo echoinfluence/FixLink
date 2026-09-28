@@ -1,0 +1,679 @@
+﻿@page "/providers/{Id:guid}"
+@using System.Net.Http.Json
+@using System.Text.Json.Serialization
+@using System.Net.Http.Headers
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components
+@inject IHttpClientFactory HttpClientFactory
+@inject FixLink.Web.Services.AuthSession AuthSession
+@inject NavigationManager Navigation
+
+
+
+
+<PageTitle>Provider Details | FixLink</PageTitle>
+
+<div class="provider-details-page">
+
+    @if (isLoading)
+    {
+        <div class="details-message">
+            <div class="loading-spinner"></div>
+            <p>Loading provider details...</p>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="details-message error-message">
+            <h2>Unable to load provider</h2>
+            <p>@errorMessage</p>
+
+            <a class="details-button" href="/providers">
+                Back to providers
+            </a>
+        </div>
+    }
+    else if (provider is not null)
+    {
+        <a class="back-link" href="/providers">
+            ← Back to providers
+        </a>
+
+        <section class="provider-profile">
+
+            <div class="profile-header">
+                <div class="profile-avatar">
+                    @GetInitials(provider.BusinessName)
+                </div>
+
+                <div class="profile-heading">
+                    <div class="profile-badges">
+                        @if (provider.IsVerified)
+                        {
+                            <span class="verified-badge">
+                                ✓ Verified provider
+                            </span>
+                        }
+                    </div>
+
+                    <h1>@provider.BusinessName</h1>
+
+                    <p class="provider-location">
+                        ⌖ @FormatLocation(provider)
+                    </p>
+                </div>
+            </div>
+
+            <div class="profile-content">
+
+                <section class="profile-section">
+                    <h2>About this business</h2>
+
+                    <p>
+                        @(string.IsNullOrWhiteSpace(provider.Description)
+                            ? "No business description has been provided yet."
+                            : provider.Description)
+                    </p>
+                </section>
+
+                <section class="profile-section">
+                    <h2>Services offered</h2>
+
+                    @if (provider.Services.Count > 0)
+                    {
+                        <div class="profile-services">
+                            @foreach (var service in provider.Services)
+                            {
+                                <span class="service-tag" @key="service.Id">
+                                    @service.Name
+                                </span>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p>No services have been listed.</p>
+                    }
+                </section>
+
+                @if (provider.YearsInBusiness > 0)
+                {
+                    <section class="profile-section">
+                        <h2>Experience</h2>
+                        <p>
+                            @provider.YearsInBusiness
+                            year(s) in business
+                        </p>
+                    </section>
+                }
+
+                <section class="profile-section">
+                    <h2>Location</h2>
+
+                    <p>
+                        @provider.AddressLine1
+
+                        @if (!string.IsNullOrWhiteSpace(provider.AddressLine2))
+                        {
+                            <br />
+                            @provider.AddressLine2
+                        }
+
+                        <br />
+                        @FormatLocation(provider)
+
+                        @if (!string.IsNullOrWhiteSpace(provider.PostalCode))
+                        {
+                            <br />
+                            @provider.PostalCode
+                        }
+                    </p>
+                </section>
+
+                <section class="profile-section contact-section">
+                    <h2>Contact this provider</h2>
+
+                    <div class="contact-actions">
+
+                        @if (!string.IsNullOrWhiteSpace(provider.PhoneNumber))
+                        {
+                            <a class="details-button"
+                               href="@($"tel:{provider.PhoneNumber}")">
+                                Call provider
+                            </a>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(provider.WhatsAppNumber))
+                        {
+                            <a class="details-button secondary-button"
+                               href="@GetWhatsAppLink(provider.WhatsAppNumber)"
+                               target="_blank"
+                               rel="noopener noreferrer">
+                                WhatsApp
+                            </a>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(provider.Email))
+                        {
+                            <a class="details-button secondary-button"
+                               href="@($"mailto:{provider.Email}")">
+                                Email provider
+                            </a>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(provider.Website))
+                        {
+                            <a class="details-button secondary-button"
+                               href="@GetWebsiteLink(provider.Website)"
+                               target="_blank"
+                               rel="noopener noreferrer">
+                                Visit website
+                            </a>
+                        }
+
+                    </div>
+
+                    @if (string.IsNullOrWhiteSpace(provider.PhoneNumber)
+                        && string.IsNullOrWhiteSpace(provider.WhatsAppNumber)
+                        && string.IsNullOrWhiteSpace(provider.Email)
+                        && string.IsNullOrWhiteSpace(provider.Website))
+                    {
+                        <p>No contact details are currently available.</p>
+                    }
+                </section>
+
+            </div>
+        </section>
+
+
+
+        <section class="profile-section reviews-section">
+            <div class="reviews-heading">
+                <div>
+                    <h2>Customer reviews</h2>
+                    <p>See what customers have to say about this provider.</p>
+                </div>
+
+                @if (reviews.Count > 0)
+                {
+                    <div class="reviews-summary">
+                        <strong>@reviews.Average(r => r.Rating).ToString("0.0")</strong>
+                        <span>★</span>
+                        <small>@reviews.Count review(s)</small>
+                    </div>
+                }
+            </div>
+
+            @* Review submission form *@
+
+            <div class="review-submit-section">
+
+                <h3>Share your experience</h3>
+
+                @if (!AuthSession.IsAuthenticated)
+                {
+                    <p>
+                        Please
+                        <a href="/login">log in</a>
+                        to leave a review for this provider.
+                    </p>
+                }
+                else
+                {
+                    @if (!string.IsNullOrWhiteSpace(reviewSuccessMessage))
+                    {
+                        <div class="review-success" role="status">
+                            @reviewSuccessMessage
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(reviewSubmitError))
+                    {
+                        <div class="login-error" role="alert">
+                            @reviewSubmitError
+                        </div>
+                    }
+
+                    <EditForm Model="@reviewModel"
+                              OnValidSubmit="@SubmitReview"
+                              FormName="ReviewForm">
+
+                        <DataAnnotationsValidator />
+
+                        <div class="review-form-field">
+                            <label>Your rating</label>
+
+                            <div class="star-rating" role="group"
+                                 aria-label="Choose your rating">
+
+                                @for (var star = 1; star <= 5; star++)
+                                {
+                                    var selectedStar = star;
+
+                                    <button type="button"
+                                            class="review-star @(reviewModel.Rating >= selectedStar ? "selected" : "")"
+                                            aria-label="@($"{selectedStar} out of 5 stars")"
+                                            aria-pressed="@(reviewModel.Rating == selectedStar)"
+                                            @onclick="() => SetRating(selectedStar)">
+                                        ★
+                                    </button>
+                                }
+
+                                <span class="rating-label">
+                                    @(reviewModel.Rating == 0
+                                        ? "Select a rating"
+                                        : $"{reviewModel.Rating} out of 5")
+                                </span>
+                            </div>
+
+                            <ValidationMessage For="@(() => reviewModel.Rating)" />
+                        </div>
+
+                        <div class="review-form-field">
+                            <label for="reviewTitle">Review title <span>(optional)</span></label>
+
+                            <InputText id="reviewTitle"
+                                       class="review-input"
+                                       @bind-Value="reviewModel.Title"
+                                       maxlength="100"
+                                       placeholder="Summarise your experience" />
+
+                            <ValidationMessage For="@(() => reviewModel.Title)" />
+                        </div>
+
+                        <div class="review-form-field">
+                            <label for="reviewComment">Your review</label>
+
+                            <InputTextArea id="reviewComment"
+                                           class="review-input review-textarea"
+                                           @bind-Value="reviewModel.Comment"
+                                           rows="5"
+                                           maxlength="2000"
+                                           placeholder="Tell others about your experience..." />
+
+                            <div class="character-count">
+                                Share what went well and what others should know.
+                            </div>
+
+                            <ValidationMessage For="@(() => reviewModel.Comment)" />
+                        </div>
+
+                        <button type="submit"
+                                class="details-button"
+                                disabled="@isSubmittingReview">
+
+                            @if (isSubmittingReview)
+                            {
+                                <span>Submitting review...</span>
+                            }
+                            else
+                            {
+                                <span>Submit review →</span>
+                            }
+
+                        </button>
+
+                    </EditForm>
+                }
+
+            </div>
+
+            @if (isLoadingReviews)
+            {
+                <p class="reviews-message">Loading reviews...</p>
+            }
+            else if (!string.IsNullOrWhiteSpace(reviewsError))
+            {
+                <p class="reviews-message reviews-error">
+                    @reviewsError
+                </p>
+            }
+            else if (reviews.Count == 0)
+            {
+                <div class="no-reviews">
+                    <span class="no-reviews-icon">☆</span>
+                    <h3>No reviews yet</h3>
+                    <p>Be the first to share your experience with this provider.</p>
+                </div>
+            }
+            else
+            {
+                <div class="reviews-list">
+                    @foreach (var review in reviews)
+                    {
+                        <article class="review-card" @key="review.Id">
+                            <div class="review-card-heading">
+                                <div class="review-stars"
+                                     aria-label="@($"{review.Rating} out of 5 stars")">
+                                    @for (var star = 1; star <= 5; star++)
+                                    {
+                                        <span class="@(star <= review.Rating
+                                              ? "star-filled"
+                                              : "star-empty")">★</span>
+                                }
+                            </div>
+
+                            <time>
+                                @review.CreatedAt.ToLocalTime().ToString("d MMM yyyy")
+                            </time>
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(review.Title))
+                        {
+                            <h3>@review.Title</h3>
+                        }
+
+                        <p>@review.Comment</p>
+                    </article>
+                }
+            </div>
+        }
+    </section>
+
+
+
+
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private ProviderDetailsResponse? provider;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    private List<ReviewResponse> reviews = new();
+    private bool isLoadingReviews;
+    private string? reviewsError;
+
+
+    private ReviewSubmissionModel reviewModel = new();
+
+    private bool isSubmittingReview;
+    private string? reviewSuccessMessage;
+    private string? reviewSubmitError;
+
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadProvider();
+    }
+
+    private async Task LoadProvider()
+    {
+        isLoading = true;
+        errorMessage = null;
+        provider = null;
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient();
+            client.BaseAddress = new Uri("https://localhost:7042/");
+
+            provider = await client.GetFromJsonAsync<ProviderDetailsResponse>(
+                $"api/providers/{Id}");
+         
+            if (provider is not null)
+            {
+                await LoadReviews();
+            }
+
+            if (provider is null)
+            {
+                errorMessage = "This provider could not be found.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                "Please check that the FixLink API is running. " +
+                "Details: " + ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+
+    private void SetRating(int rating)
+    {
+        if (rating >= 1 && rating <= 5)
+        {
+            reviewModel.Rating = rating;
+        }
+    }
+
+
+
+
+
+    private static string GetInitials(string? businessName)
+    {
+        if (string.IsNullOrWhiteSpace(businessName))
+            return "F";
+
+        return string.Join("",
+            businessName.Split(' ',
+                StringSplitOptions.RemoveEmptyEntries)
+                .Take(2)
+                .Select(word => char.ToUpperInvariant(word[0])));
+    }
+
+
+    public class ReviewSubmissionModel
+    {
+        [Range(1, 5, ErrorMessage = "Please select a rating from 1 to 5.")]
+        public int Rating { get; set; }
+
+        [StringLength(100, ErrorMessage = "The title cannot exceed 100 characters.")]
+        public string? Title { get; set; }
+
+        [Required(ErrorMessage = "Please enter your review.")]
+        [StringLength(
+            2000,
+            MinimumLength = 3,
+            ErrorMessage = "Your review must be between 3 and 2000 characters.")]
+        public string Comment { get; set; } = string.Empty;
+    }
+
+
+
+    private async Task SubmitReview()
+    {
+        isSubmittingReview = true;
+        reviewSuccessMessage = null;
+        reviewSubmitError = null;
+
+        try
+        {
+            if (!AuthSession.IsAuthenticated ||
+                string.IsNullOrWhiteSpace(AuthSession.Token))
+            {
+                reviewSubmitError = "Please log in before submitting a review.";
+                return;
+            }
+
+            var client = HttpClientFactory.CreateClient();
+            client.BaseAddress = new Uri("https://localhost:7042/");
+
+            using var request = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"api/reviews/provider/{Id}");
+
+            request.Headers.Authorization =
+                new AuthenticationHeaderValue(
+                    "Bearer",
+                    AuthSession.Token);
+
+            request.Content = JsonContent.Create(new
+            {
+                Rating = reviewModel.Rating,
+                Title = reviewModel.Title,
+                Comment = reviewModel.Comment
+            });
+
+            using var response = await client.SendAsync(request);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                await AuthSession.ClearTokenAsync();
+
+                reviewSubmitError =
+                    "Your login session has expired. Please log in again.";
+
+                return;
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+            {
+                reviewSubmitError =
+                    "The review could not be submitted. Please check your details.";
+
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                reviewSubmitError =
+                    $"Unable to submit your review (HTTP {(int)response.StatusCode}). Please try again.";
+
+                return;
+            }
+
+            reviewSuccessMessage =
+                "Thank you! Your review has been submitted and is awaiting approval.";
+
+            reviewModel = new ReviewSubmissionModel();
+        }
+        catch (HttpRequestException)
+        {
+            reviewSubmitError =
+                "Unable to connect to FixLink. Please check that the API is running.";
+        }
+        catch (Exception)
+        {
+            reviewSubmitError =
+                "Something went wrong while submitting your review. Please try again.";
+        }
+        finally
+        {
+            isSubmittingReview = false;
+        }
+    }
+
+
+
+
+    private static string FormatLocation(ProviderDetailsResponse item)
+    {
+        var parts = new[]
+        {
+            item.Suburb,
+            item.City,
+            item.Province
+        }
+        .Where(part => !string.IsNullOrWhiteSpace(part));
+
+        return string.Join(", ", parts);
+    }
+
+    private static string GetWhatsAppLink(string number)
+    {
+        var digits = new string(number.Where(char.IsDigit).ToArray());
+
+        // Convert a South African number beginning with 0 to country code 27.
+        if (digits.StartsWith("0"))
+        {
+            digits = "27" + digits[1..];
+        }
+
+        return $"https://wa.me/{digits}";
+    }
+
+    private static string GetWebsiteLink(string website)
+    {
+        if (website.StartsWith("https://",
+                StringComparison.OrdinalIgnoreCase)
+            || website.StartsWith("http://",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return website;
+        }
+
+        return $"https://{website}";
+    }
+
+    public class ProviderDetailsResponse
+    {
+        public Guid Id { get; set; }
+        public string BusinessName { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+
+        public string PhoneNumber { get; set; } = string.Empty;
+        public string WhatsAppNumber { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Website { get; set; } = string.Empty;
+
+        public string AddressLine1 { get; set; } = string.Empty;
+        public string AddressLine2 { get; set; } = string.Empty;
+        public string Suburb { get; set; } = string.Empty;
+        public string City { get; set; } = string.Empty;
+        public string Province { get; set; } = string.Empty;
+        public string PostalCode { get; set; } = string.Empty;
+
+        public int YearsInBusiness { get; set; }
+        public bool IsVerified { get; set; }
+
+        public List<ServiceDetails> Services { get; set; } = new();
+    }
+
+    public class ServiceDetails
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string CategoryName { get; set; } = string.Empty;
+    }
+
+
+    public class ReviewResponse
+    {
+        public Guid Id { get; set; }
+        public int Rating { get; set; }
+        public string? Title { get; set; }
+        public string Comment { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+    }
+
+
+
+    private async Task LoadReviews()
+    {
+        isLoadingReviews = true;
+        reviewsError = null;
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient();
+            client.BaseAddress = new Uri("https://localhost:7042/");
+
+            var result = await client.GetFromJsonAsync<List<ReviewResponse>>(
+                $"api/reviews/provider/{Id}");
+
+            reviews = result ?? new List<ReviewResponse>();
+        }
+        catch (Exception)
+        {
+            reviewsError = "Unable to load reviews. Please try again later.";
+        }
+        finally
+        {
+            isLoadingReviews = false;
+        }
+    }
+
+
+}

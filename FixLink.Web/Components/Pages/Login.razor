@@ -1,0 +1,182 @@
+﻿@page "/login"
+
+@using System.Net
+@using System.Net.Http
+@using System.Net.Http.Json
+@using System.ComponentModel.DataAnnotations
+@using FixLink.Web.Services
+
+@inject IHttpClientFactory HttpClientFactory
+@inject AuthSession AuthSession
+@inject NavigationManager Navigation
+
+<PageTitle>Log In | FixLink</PageTitle>
+
+<div class="login-page">
+    <div class="login-card">
+
+        <a href="/" class="login-brand">
+            <span class="brand-icon">F</span>
+            <span>Fix<span class="brand-highlight">Link</span></span>
+        </a>
+
+        <div class="login-heading">
+            <span class="login-eyebrow">WELCOME BACK</span>
+            <h1>Log in to FixLink</h1>
+            <p>Sign in to save providers and share your experiences.</p>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="login-error" role="alert">
+                <strong>Login unsuccessful</strong>
+                <p>@errorMessage</p>
+            </div>
+        }
+
+        <EditForm Model="@loginModel"
+                  OnValidSubmit="@HandleLogin"
+                  FormName="LoginForm">
+
+            <DataAnnotationsValidator />
+
+            <div class="login-field">
+                <label for="email">Email address</label>
+
+                <InputText id="email"
+                           class="login-input"
+                           type="email"
+                           @bind-Value="loginModel.Email"
+                           placeholder="you@example.com"
+                           autocomplete="email" />
+
+                <ValidationMessage For="@(() => loginModel.Email)" />
+            </div>
+
+            <div class="login-field">
+                <label for="password">Password</label>
+
+                <InputText id="password"
+                           class="login-input"
+                           type="password"
+                           @bind-Value="loginModel.Password"
+                           placeholder="Enter your password"
+                           autocomplete="current-password" />
+
+                <ValidationMessage For="@(() => loginModel.Password)" />
+            </div>
+
+            <button type="submit"
+                    class="login-submit"
+                    disabled="@isLoading">
+
+                @if (isLoading)
+                {
+                    <span>Logging in...</span>
+                }
+                else
+                {
+                    <span>
+                        Log in <span aria-hidden="true">→</span>
+                    </span>
+                }
+            </button>
+
+        </EditForm>
+
+        <div class="login-footer">
+            <a href="/providers">← Browse providers</a>
+        </div>
+
+    </div>
+</div>
+
+@code {
+    private LoginRequest loginModel = new();
+
+    private bool isLoading;
+    private string? errorMessage;
+
+    private async Task HandleLogin()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient();
+
+            client.BaseAddress = new Uri("https://localhost:7042/");
+
+            var response = await client.PostAsJsonAsync(
+                "api/Auth/login",
+                loginModel);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = response.StatusCode switch
+                {
+                    HttpStatusCode.Unauthorized =>
+                        "The email or password is incorrect.",
+
+                    HttpStatusCode.BadRequest =>
+                        "Please check the details you entered.",
+
+                    _ =>
+                        $"Login failed (HTTP {(int)response.StatusCode}). " +
+                        "Please try again."
+                };
+
+                return;
+            }
+
+            var result =
+                await response.Content.ReadFromJsonAsync<LoginResponse>();
+
+            if (string.IsNullOrWhiteSpace(result?.Token))
+            {
+                errorMessage =
+                    "The API did not return a login token. " +
+                    "Check the token property in the API response.";
+
+                return;
+            }
+
+            await AuthSession.SetTokenAsync(result.Token);
+
+            Navigation.NavigateTo("/providers");
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage =
+                "Unable to connect to FixLink. " +
+                "Make sure the API is running at https://localhost:7042.";
+        }
+        catch (Exception)
+        {
+            errorMessage =
+                "Something went wrong while logging in. Please try again.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    public class LoginRequest
+    {
+        [Required(ErrorMessage = "Please enter your email address.")]
+        [EmailAddress(ErrorMessage = "Enter a valid email address.")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Please enter your password.")]
+        public string Password { get; set; } = string.Empty;
+    }
+
+    public class LoginResponse
+    {
+        public string? Token { get; set; }
+
+        public DateTime? ExpiresAt { get; set; }
+    }
+}

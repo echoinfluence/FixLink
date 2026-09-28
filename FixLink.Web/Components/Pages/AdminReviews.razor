@@ -1,0 +1,281 @@
+﻿@page "/admin/reviews"
+@using System.Net
+@using System.Net.Http.Headers
+@using System.Net.Http.Json
+@using FixLink.Web.Services
+@using Microsoft.JSInterop
+@inject IHttpClientFactory HttpClientFactory
+@inject AuthSession AuthSession
+
+<PageTitle>Review Management | FixLink</PageTitle>
+
+<div class="admin-reviews-page">
+    <div class="admin-reviews-header">
+        <div>
+            <span class="admin-eyebrow">FIXLINK ADMIN</span>
+            <h1>Review management</h1>
+            <p>Review customer feedback before it appears publicly.</p>
+        </div>
+
+        <button class="admin-refresh-button"
+                @onclick="LoadReviews"
+                disabled="@isLoading">
+            Refresh
+        </button>
+    </div>
+
+    @if (!AuthSession.IsAuthenticated)
+    {
+        <div class="admin-notice admin-notice-warning">
+            <strong>Login required</strong>
+            <p>Please log in with your admin account to manage reviews.</p>
+            <a href="/login">Go to login →</a>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="admin-notice admin-notice-error">
+            <strong>Unable to load reviews</strong>
+            <p>@errorMessage</p>
+
+            @if (showLoginLink)
+            {
+                <a href="/login">Log in again →</a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="admin-review-summary">
+            <div class="admin-summary-icon">★</div>
+            <div>
+                <span>Pending reviews</span>
+                <strong>@reviews.Count</strong>
+            </div>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="admin-empty-state">
+                Loading reviews...
+            </div>
+        }
+        else if (reviews.Count == 0)
+        {
+            <div class="admin-empty-state">
+                <div class="admin-empty-icon">✓</div>
+                <h2>You're all caught up!</h2>
+                <p>There are no reviews waiting for approval.</p>
+            </div>
+        }
+        else
+        {
+            <div class="admin-review-list">
+                @foreach (var review in reviews)
+                {
+                    <article class="admin-review-card" @key="review.Id">
+                        <div class="admin-review-top">
+                            <div>
+                                <span class="admin-provider-label">
+                                    @review.ProviderName
+                                </span>
+
+                                <div class="admin-review-stars"
+                                     aria-label="@($"{review.Rating} out of 5 stars")">
+                                    @for (var star = 1; star <= 5; star++)
+                                    {
+                                        <span class="@(star <= review.Rating ? "star-filled" : "star-empty")">★</span>
+                                    }
+                                </div>
+                            </div>
+
+                            <span class="admin-pending-badge">Pending</span>
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(review.Title))
+                        {
+                            <h2>@review.Title</h2>
+                        }
+
+                        <p class="admin-review-comment">@review.Comment</p>
+
+                        <div class="admin-review-meta">
+                            <span>Submitted @review.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</span>
+                            <span>Review ID: @review.Id</span>
+                        </div>
+
+                        <div class="admin-review-actions">
+                            <button class="admin-approve-button"
+                                    @onclick="() => ApproveReview(review.Id)"
+                                    disabled="@(busyReviewId.HasValue)">
+                                @(busyReviewId == review.Id
+                                    ? "Approving..."
+                                    : "✓ Approve review")
+                            </button>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private List<PendingReview> reviews = new();
+    private bool isLoading;
+    private bool showLoginLink;
+    private string? errorMessage;
+    private Guid? busyReviewId;
+
+    private async Task LoadReviews()
+    {
+        if (!AuthSession.IsAuthenticated ||
+            string.IsNullOrWhiteSpace(AuthSession.Token))
+        {
+            errorMessage = null;
+            return;
+        }
+
+        isLoading = true;
+        errorMessage = null;
+        showLoginLink = false;
+
+        try
+        {
+            var client = CreateAuthenticatedClient();
+
+            using var response = await client.GetAsync("api/reviews/pending");
+
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                errorMessage = "Your session has expired. Please log in again.";
+                showLoginLink = true;
+                return;
+            }
+
+            if (response.StatusCode == HttpStatusCode.Forbidden)
+            {
+                errorMessage = "Your account does not have permission to manage reviews. An Admin account is required.";
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = $"The API returned {(int)response.StatusCode}. Please try again.";
+                return;
+            }
+
+            reviews = await response.Content
+                .ReadFromJsonAsync<List<PendingReview>>() ?? new();
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Could not connect to the API. Make sure FixLink.Api is running.";
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            errorMessage = "The API returned data that the page could not read.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ApproveReview(Guid reviewId)
+    {
+        if (busyReviewId.HasValue)
+            return;
+
+        busyReviewId = reviewId;
+        errorMessage = null;
+        showLoginLink = false;
+
+        try
+        {
+            var client = CreateAuthenticatedClient();
+
+            using var response = await client.PutAsync(
+                $"api/reviews/{reviewId}/approve",
+                content: null);
+
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                errorMessage = "Your session has expired. Please log in again.";
+                showLoginLink = true;
+                return;
+            }
+
+            if (response.StatusCode == HttpStatusCode.Forbidden)
+            {
+                errorMessage = "Your account does not have Admin permission.";
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Could not approve this review. API response: {body}";
+                return;
+            }
+
+            reviews.RemoveAll(r => r.Id == reviewId);
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Could not connect to the API. Make sure FixLink.Api is running.";
+        }
+        finally
+        {
+            busyReviewId = null;
+        }
+    }
+
+    private HttpClient CreateAuthenticatedClient()
+    {
+        var client = HttpClientFactory.CreateClient();
+        client.BaseAddress = new Uri("https://localhost:7042/");
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", AuthSession.Token);
+
+        return client;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        try
+        {
+            await AuthSession.RestoreTokenAsync();
+
+            if (AuthSession.IsAuthenticated)
+            {
+                await LoadReviews();
+            }
+
+            StateHasChanged();
+        }
+        catch (JSException)
+        {
+            errorMessage = "Unable to restore your session. Please log in again.";
+            showLoginLink = true;
+            StateHasChanged();
+        }
+    }
+
+    public class PendingReview
+    {
+        public Guid Id { get; set; }
+        public Guid ProviderId { get; set; }
+        public string ProviderName { get; set; } = string.Empty;
+        public Guid UserId { get; set; }
+        public int Rating { get; set; }
+        public string? Title { get; set; }
+        public string Comment { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+        public bool IsApproved { get; set; }
+        public bool IsReported { get; set; }
+    }
+}

@@ -1,0 +1,211 @@
+
+/* =========================================
+   FIXLINK - MAIN WEBSITE LAYOUT
+   ========================================= */
+
+.fixlink-layout {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: #f8fafc;
+    color: #172033;
+    font-family: "Segoe UI", Arial, sans-serif;
+}
+
+/* HEADER */
+
+.fixlink-header {
+    width: 100%;
+    min-height: 82px;
+    padding: 0 6%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 32px;
+    background: #ffffff;
+    border-bottom: 1px solid #e8edf3;
+    box-shadow: 0 2px 12px rgba(15, 23, 42, 0.03);
+    position: relative;
+    z-index: 10;
+}
+
+/* BRAND */
+
+.fixlink-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: #10213a;
+    font-size: 1.65rem;
+    font-weight: 800;
+    letter-spacing: -0.8px;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.brand-icon {
+    width: 39px;
+    height: 39px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: #0f766e;
+    color: #ffffff;
+    font-size: 1.35rem;
+    font-weight: 800;
+}
+
+.brand-highlight {
+    color: #0f766e;
+}
+
+/* NAVIGATION */
+
+.fixlink-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 34px;
+}
+
+    .fixlink-nav a {
+        color: #526176;
+        font-size: 0.95rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+        .fixlink-nav a:hover,
+        .fixlink-nav a.active {
+            color: #0f766e;
+        }
+
+/* HEADER BUTTONS */
+
+.fixlink-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    white-space: nowrap;
+}
+
+.login-link {
+    color: #26364d;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+    .login-link:hover {
+        color: #0f766e;
+    }
+
+.register-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 22px;
+    border: 1px solid #0f766e;
+    border-radius: 9px;
+    background: #0f766e;
+    color: #ffffff;
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+    .register-button:hover {
+        background: #115e59;
+        border-color: #115e59;
+        color: #ffffff;
+        transform: translateY(-1px);
+    }
+
+/* MAIN CONTENT */
+
+.fixlink-main {
+    width: 100%;
+    flex: 1;
+}
+
+/* FOOTER */
+
+.fixlink-footer {
+    padding: 24px 6%;
+    border-top: 1px solid #e8edf3;
+    background: #ffffff;
+    color: #718096;
+    text-align: center;
+    font-size: 0.88rem;
+}
+
+    .fixlink-footer p {
+        margin: 0;
+    }
+
+/* TABLET AND MOBILE */
+
+@media (max-width: 760px) {
+    .fixlink-header {
+        padding: 18px 5%;
+        flex-wrap: wrap;
+        gap: 18px;
+    }
+
+    .fixlink-brand {
+        font-size: 1.45rem;
+    }
+
+    .brand-icon {
+        width: 35px;
+        height: 35px;
+        font-size: 1.2rem;
+    }
+
+    .fixlink-nav {
+        order: 3;
+        width: 100%;
+        justify-content: flex-start;
+        gap: 24px;
+        padding-top: 4px;
+    }
+
+    .fixlink-header-actions {
+        gap: 14px;
+        margin-left: auto;
+    }
+
+    .register-button {
+        padding: 10px 15px;
+        font-size: 0.88rem;
+    }
+
+    .login-link {
+        font-size: 0.88rem;
+    }
+}
+
+@media (max-width: 420px) {
+    .fixlink-header {
+        gap: 14px;
+    }
+
+    .fixlink-nav {
+        gap: 18px;
+    }
+
+        .fixlink-nav a {
+            font-size: 0.88rem;
+        }
+
+    .fixlink-header-actions {
+        gap: 10px;
+    }
+
+    .register-button {
+        padding: 9px 11px;
+    }
+}

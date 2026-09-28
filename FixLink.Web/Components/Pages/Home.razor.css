@@ -1,0 +1,350 @@
+/* CSS for Home component */
+
+.home-page {
+    --fixlink-primary: #087f70;
+    --fixlink-dark: #102b35;
+    --fixlink-muted: #64748b;
+    color: var(--fixlink-dark);
+}
+
+/* HERO */
+
+.hero-section {
+    display: grid;
+    grid-template-columns: 1.4fr 0.8fr;
+    align-items: center;
+    gap: 64px;
+    padding: 90px max(7%, calc((100% - 1200px) / 2));
+    background: linear-gradient(135deg, #f0faf8, #f8fbff);
+}
+
+.hero-content {
+    max-width: 680px;
+}
+
+.hero-badge,
+.section-eyebrow {
+    display: inline-block;
+    color: var(--fixlink-primary);
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    margin-bottom: 18px;
+}
+
+.hero-content h1 {
+    font-size: clamp(2.5rem, 5vw, 4.25rem);
+    line-height: 1.12;
+    letter-spacing: -2px;
+    font-weight: 800;
+    margin: 0 0 24px;
+}
+
+    .hero-content h1 span {
+        display: block;
+        color: var(--fixlink-primary);
+    }
+
+.hero-description {
+    max-width: 580px;
+    color: var(--fixlink-muted);
+    font-size: 1.1rem;
+    line-height: 1.8;
+    margin-bottom: 32px;
+}
+
+.hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+
+.btn-primary,
+.btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 50px;
+    padding: 0 25px;
+    border-radius: 8px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: transform 0.2s, background 0.2s;
+}
+
+.btn-primary {
+    background: var(--fixlink-primary);
+    color: white;
+}
+
+    .btn-primary:hover {
+        background: #06695d;
+        color: white;
+        transform: translateY(-2px);
+    }
+
+.btn-secondary {
+    background: white;
+    color: var(--fixlink-dark);
+    border: 1px solid #dbe5e8;
+}
+
+    .btn-secondary:hover {
+        background: #f1f5f9;
+        color: var(--fixlink-dark);
+    }
+
+.hero-trust {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    margin-top: 30px;
+    color: #526875;
+    font-size: 0.85rem;
+}
+
+/* HERO CARD */
+
+.hero-card {
+    padding: 36px;
+    background: white;
+    border: 1px solid #e5eeed;
+    border-radius: 18px;
+    box-shadow: 0 20px 60px rgba(16, 43, 53, 0.08);
+}
+
+.hero-card-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    margin-bottom: 24px;
+    border-radius: 12px;
+    background: #e5f5f1;
+    color: var(--fixlink-primary);
+    font-size: 1.5rem;
+    font-weight: 900;
+}
+
+.hero-card h3 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin-bottom: 12px;
+}
+
+.hero-card > p {
+    color: var(--fixlink-muted);
+    line-height: 1.7;
+}
+
+.hero-card-divider {
+    height: 1px;
+    background: #e8eef0;
+    margin: 24px 0;
+}
+
+.hero-card-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+    font-size: 0.92rem;
+}
+
+.mini-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: #e5f5f1;
+    color: var(--fixlink-primary);
+    font-weight: 800;
+}
+
+/* SECTIONS */
+
+.categories-section,
+.how-it-works {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 80px 28px;
+}
+
+.section-heading {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 32px;
+}
+
+    .section-heading h2 {
+        font-size: clamp(1.8rem, 3vw, 2.4rem);
+        font-weight: 800;
+        letter-spacing: -1px;
+        margin: 0 0 10px;
+    }
+
+    .section-heading p {
+        color: var(--fixlink-muted);
+        margin: 0;
+    }
+
+.view-all {
+    color: var(--fixlink-primary);
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+    .view-all:hover {
+        text-decoration: underline;
+    }
+
+/* CATEGORY CARDS */
+
+.category-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.category-card {
+    padding: 28px;
+    border: 1px solid #e2e9ec;
+    border-radius: 12px;
+    text-decoration: none;
+    color: var(--fixlink-dark);
+    background: white;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+
+    .category-card:hover {
+        transform: translateY(-4px);
+        border-color: #a5d8ce;
+        box-shadow: 0 12px 30px rgba(16, 43, 53, 0.07);
+        color: var(--fixlink-dark);
+    }
+
+.category-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    margin-bottom: 20px;
+    border-radius: 12px;
+    background: #eff8f6;
+    font-size: 1.6rem;
+}
+
+.category-card h3 {
+    font-size: 1.1rem;
+    font-weight: 800;
+    margin-bottom: 8px;
+}
+
+.category-card p {
+    color: var(--fixlink-muted);
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+/* HOW IT WORKS */
+
+.how-it-works {
+    max-width: none;
+    padding-left: max(28px, calc((100% - 1144px) / 2));
+    padding-right: max(28px, calc((100% - 1144px) / 2));
+    background: #f6f9fa;
+}
+
+.steps-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+}
+
+.step-card {
+    padding: 28px;
+    background: white;
+    border: 1px solid #e5ecee;
+    border-radius: 12px;
+}
+
+.step-number {
+    display: block;
+    margin-bottom: 22px;
+    color: var(--fixlink-primary);
+    font-size: 0.85rem;
+    font-weight: 900;
+    letter-spacing: 1px;
+}
+
+.step-card h3 {
+    font-size: 1.15rem;
+    font-weight: 800;
+    margin-bottom: 12px;
+}
+
+.step-card p {
+    color: var(--fixlink-muted);
+    line-height: 1.7;
+    margin: 0;
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 900px) {
+    .hero-section {
+        grid-template-columns: 1fr;
+        gap: 40px;
+        padding: 65px 6%;
+    }
+
+    .hero-card {
+        max-width: 600px;
+    }
+
+    .category-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 600px) {
+    .hero-section {
+        padding: 48px 22px;
+    }
+
+    .hero-content h1 {
+        letter-spacing: -1px;
+    }
+
+    .hero-trust {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .hero-card {
+        padding: 26px;
+    }
+
+    .categories-section,
+    .how-it-works {
+        padding: 55px 22px;
+    }
+
+    .section-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .category-grid,
+    .steps-grid {
+        grid-template-columns: 1fr;
+    }
+}

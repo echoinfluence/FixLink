@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="FixLink.Api/FixLink.Api.csproj" />
+  <Project Path="FixLink.Application/FixLink.Application.csproj" />
+  <Project Path="FixLink.Domain/FixLink.Domain.csproj" />
+  <Project Path="FixLink.Infrastructure/FixLink.Infrastructure.csproj" />
+  <Project Path="FixLink.Tests/FixLink.Tests.csproj" />
+  <Project Path="FixLink.Web/FixLink.Web.csproj" />
+</Solution>

@@ -1,0 +1,91 @@
+﻿@inherits LayoutComponentBase
+@using FixLink.Web.Services
+@using Microsoft.JSInterop
+@inject AuthSession AuthSession
+@inject NavigationManager Navigation
+
+<div class="fixlink-layout">
+    <header class="fixlink-header">
+        <a href="/" class="fixlink-brand">
+            <span class="brand-icon">F</span>
+            <span>Fix<span class="brand-highlight">Link</span></span>
+        </a>
+
+        <nav class="fixlink-nav">
+            <NavLink href="/" Match="NavLinkMatch.All">
+                Home
+            </NavLink>
+
+            <NavLink href="/providers">
+                Find a Provider
+            </NavLink>
+
+            @if (AuthSession.IsAdmin)
+            {
+                <NavLink href="/admin/reviews">
+                    Admin Reviews
+                </NavLink>
+            }
+        </nav>
+
+        <div class="fixlink-header-actions">
+            @if (AuthSession.IsAuthenticated)
+            {
+                <button type="button"
+                        class="login-link"
+                        @onclick="Logout">
+                    Log out
+                </button>
+            }
+            else
+            {
+                <NavLink href="/login" class="login-link">
+                    Log in
+                </NavLink>
+
+                <NavLink href="/register"
+                         class="register-button">
+                    Get Started
+                </NavLink>
+            }
+        </div>
+    </header>
+
+    <main class="fixlink-main">
+        @Body
+    </main>
+
+    <footer class="fixlink-footer">
+        <p>
+            © @DateTime.Now.Year FixLink.
+            Connecting you with trusted local services.
+        </p>
+    </footer>
+</div>
+
+@code {
+    private async Task Logout()
+    {
+        await AuthSession.ClearTokenAsync();
+        Navigation.NavigateTo("/login");
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await AuthSession.RestoreTokenAsync();
+                StateHasChanged();
+            }
+            catch (JSException)
+            {
+                // Browser storage wasn't available.
+                // The user can still log in again.
+            }
+        }
+    }
+
+
+}
