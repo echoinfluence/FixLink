@@ -1,0 +1,378 @@
+﻿@page "/admin/business-hours"
+@using System.Net
+@using System.Net.Http.Headers
+@using System.Net.Http.Json
+@using FixLink.Web.Services
+@using Microsoft.JSInterop
+@inject IHttpClientFactory HttpClientFactory
+@inject AuthSession AuthSession
+
+<PageTitle>Business Hours | FixLink Admin</PageTitle>
+
+<div class="admin-business-hours-page">
+    <div class="admin-reviews-header">
+        <div>
+            <span class="admin-eyebrow">FIXLINK ADMIN</span>
+            <h1>Business hours</h1>
+            <p>Manage the opening hours displayed on provider profiles.</p>
+        </div>
+    </div>
+
+    @if (!AuthSession.IsAuthenticated)
+    {
+        <div class="admin-notice admin-notice-warning">
+            <strong>Login required</strong>
+            <p>Please log in with your admin account to manage business hours.</p>
+            <a href="/login">Go to login →</a>
+        </div>
+    }
+    else
+    {
+        <div class="admin-review-card">
+            <label for="providerId">Provider ID</label>
+
+            <input id="providerId"
+                   class="business-hours-provider-input"
+                   @bind="providerId"
+                   placeholder="Enter the provider GUID" />
+
+            <button class="business-hours-load-button"
+                    @onclick="LoadBusinessHours"
+                    disabled="@isLoading">
+                @(isLoading ? "Loading..." : "Load business hours")
+            </button>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="admin-notice admin-notice-error">
+                <strong>Unable to complete request</strong>
+                <p>@errorMessage</p>
+
+                @if (showLoginLink)
+                {
+                    <a href="/login">Log in again →</a>
+                }
+            </div>
+        }
+
+        @if (hoursLoaded)
+        {
+            <div class="admin-review-card">
+                <h2>Weekly schedule</h2>
+                <p>Choose the opening and closing times for each day.</p>
+
+                @foreach (var day in businessHours)
+                {
+                    <div class="business-hour-row" @key="day.DayOfWeek">
+                        <strong>@day.DayOfWeek</strong>
+
+                        <label>
+                            <input type="checkbox"
+                                   @bind="day.IsClosed"
+                                   @bind:after="() => OnClosedChanged(day)" />
+                            Closed
+                        </label>
+
+                        @if (!day.IsClosed)
+                        {
+                            <label>
+                                Opens
+                                <input type="time"
+                                       value="@day.OpenTime"
+                                       @onchange="(e) => day.OpenTime = e.Value?.ToString()" />
+                            </label>
+
+                            <label>
+                                Closes
+                                <input type="time"
+                                       value="@day.CloseTime"
+                                       @onchange="(e) => day.CloseTime = e.Value?.ToString()" />
+                            </label>
+                        }
+                    </div>
+                }
+
+                <button class="admin-approve-button"
+                        @onclick="SaveBusinessHours"
+                        disabled="@isSaving">
+                    @(isSaving ? "Saving..." : "Save business hours")
+                </button>
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="admin-notice">
+                <strong>@successMessage</strong>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private string providerId = string.Empty;
+
+    private List<BusinessHourInput> businessHours = new();
+
+    private bool isLoading;
+    private bool isSaving;
+    private bool hoursLoaded;
+    private bool showLoginLink;
+
+    private string? errorMessage;
+    private string? successMessage;
+
+    private static readonly DayOfWeek[] Days =
+    {
+        DayOfWeek.Monday,
+        DayOfWeek.Tuesday,
+        DayOfWeek.Wednesday,
+        DayOfWeek.Thursday,
+        DayOfWeek.Friday,
+        DayOfWeek.Saturday,
+        DayOfWeek.Sunday
+    };
+
+    private async Task LoadBusinessHours()
+    {
+        errorMessage = null;
+        successMessage = null;
+        showLoginLink = false;
+        hoursLoaded = false;
+
+        if (!Guid.TryParse(providerId, out var id))
+        {
+            errorMessage = "Enter a valid provider ID.";
+            return;
+        }
+
+        isLoading = true;
+
+        try
+        {
+            var client = CreateAuthenticatedClient();
+
+            using var response = await client.GetAsync(
+                $"api/providers/{id}/business-hours");
+
+            if (!await HandleAuthErrors(response))
+                return;
+
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = response.StatusCode == HttpStatusCode.NotFound
+                    ? "Provider not found."
+                    : $"The API returned {(int)response.StatusCode}.";
+                return;
+            }
+
+            var result = await response.Content
+                .ReadFromJsonAsync<List<BusinessHourResponse>>();
+
+            result ??= new();
+
+            businessHours = Days.Select(day =>
+            {
+                var saved = result.FirstOrDefault(
+                    x => x.DayOfWeek == day);
+
+                return new BusinessHourInput
+                {
+                    DayOfWeek = day,
+                    IsClosed = saved?.IsClosed ?? false,
+                    OpenTime = FormatTime(saved?.OpenTime),
+                    CloseTime = FormatTime(saved?.CloseTime)
+                };
+            }).ToList();
+
+            hoursLoaded = true;
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Could not connect to the API. Make sure FixLink.Api is running.";
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            errorMessage = "The API returned data that the page could not read.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SaveBusinessHours()
+    {
+        errorMessage = null;
+        successMessage = null;
+        showLoginLink = false;
+
+        if (!Guid.TryParse(providerId, out var id))
+        {
+            errorMessage = "Enter a valid provider ID.";
+            return;
+        }
+
+        foreach (var day in businessHours.Where(x => !x.IsClosed))
+        {
+            if (!TimeSpan.TryParse(day.OpenTime, out var open) ||
+                !TimeSpan.TryParse(day.CloseTime, out var close))
+            {
+                errorMessage = $"Enter valid opening and closing times for {day.DayOfWeek}.";
+                return;
+            }
+
+            if (open >= close)
+            {
+                errorMessage = $"The closing time must be after the opening time on {day.DayOfWeek}.";
+                return;
+            }
+        }
+
+        isSaving = true;
+
+        try
+        {
+            var client = CreateAuthenticatedClient();
+
+            var request = new UpdateBusinessHoursRequest
+            {
+                Days = businessHours.Select(day =>
+                    new BusinessHourRequest
+                    {
+                        DayOfWeek = day.DayOfWeek,
+                        IsClosed = day.IsClosed,
+                        OpenTime = day.IsClosed
+                            ? null
+                            : TimeSpan.Parse(day.OpenTime!),
+                        CloseTime = day.IsClosed
+                            ? null
+                            : TimeSpan.Parse(day.CloseTime!)
+                    }).ToList()
+            };
+
+            using var response = await client.PutAsJsonAsync(
+                $"api/providers/{id}/business-hours",
+                request);
+
+            if (!await HandleAuthErrors(response))
+                return;
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Could not save business hours. API response: {body}";
+                return;
+            }
+
+            successMessage = "Business hours saved successfully.";
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Could not connect to the API. Make sure FixLink.Api is running.";
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            errorMessage = "The API returned data that the page could not read.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task<bool> HandleAuthErrors(HttpResponseMessage response)
+    {
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            errorMessage = "Your session has expired. Please log in again.";
+            showLoginLink = true;
+            return false;
+        }
+
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            errorMessage = "Your account does not have Admin permission.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private HttpClient CreateAuthenticatedClient()
+    {
+        var client = HttpClientFactory.CreateClient();
+        client.BaseAddress = new Uri("https://localhost:7042/");
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", AuthSession.Token);
+
+        return client;
+    }
+
+    private static string? FormatTime(string? value)
+    {
+        if (TimeSpan.TryParse(value, out var time))
+            return time.ToString(@"hh\:mm");
+
+        return null;
+    }
+  
+
+    private static void OnClosedChanged(BusinessHourInput day)
+    {
+        if (day.IsClosed)
+        {
+            day.OpenTime = null;
+            day.CloseTime = null;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        try
+        {
+            await AuthSession.RestoreTokenAsync();
+            StateHasChanged();
+        }
+        catch (JSException)
+        {
+            errorMessage = "Unable to restore your session. Please log in again.";
+            showLoginLink = true;
+            StateHasChanged();
+        }
+    }
+
+    public class BusinessHourInput
+    {
+        public DayOfWeek DayOfWeek { get; set; }
+        public bool IsClosed { get; set; }
+        public string? OpenTime { get; set; }
+        public string? CloseTime { get; set; }
+    }
+
+    public class BusinessHourResponse
+    {
+        public DayOfWeek DayOfWeek { get; set; }
+        public bool IsConfigured { get; set; }
+        public bool IsClosed { get; set; }
+        public string? OpenTime { get; set; }
+        public string? CloseTime { get; set; }
+    }
+
+    public class UpdateBusinessHoursRequest
+    {
+        public List<BusinessHourRequest> Days { get; set; } = new();
+    }
+
+    public class BusinessHourRequest
+    {
+        public DayOfWeek DayOfWeek { get; set; }
+        public TimeSpan? OpenTime { get; set; }
+        public TimeSpan? CloseTime { get; set; }
+        public bool IsClosed { get; set; }
+    }
+}

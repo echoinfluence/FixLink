@@ -185,6 +185,59 @@
             </div>
         </section>
 
+        <section class="profile-section business-hours-section">
+            <h2>Opening hours</h2>
+
+            @if (provider.BusinessHours.Count == 0)
+            {
+                <p class="hours-unavailable">
+                    Opening hours not provided.
+                </p>
+            }
+            else
+            {
+                <div class="business-hours-list">
+                    @foreach (var day in Enum.GetValues<DayOfWeek>()
+                        .OrderBy(d => d == DayOfWeek.Sunday ? 7 : (int)d))
+                    {
+                        var hours = provider.BusinessHours
+                            .FirstOrDefault(h => h.DayOfWeek == day);
+
+                        <div class="business-hours-row" @key="day">
+                            <span class="business-hours-day">
+                                @day
+                            </span>
+
+                            <span class="business-hours-time">
+                                @if (hours is null)
+                                {
+                                    <span class="hours-unavailable">
+                                        Not provided
+                                    </span>
+                                }
+                                else if (hours.IsClosed)
+                                {
+                                    <span class="hours-closed">
+                                        Closed
+                                    </span>
+                                }
+                                else if (hours.OpenTime.HasValue &&
+                                         hours.CloseTime.HasValue)
+                                {
+                                    @($"{hours.OpenTime.Value:hh\\:mm} – {hours.CloseTime.Value:hh\\:mm}")
+                                }
+                                else
+                                {
+                                    <span class="hours-unavailable">
+                                        Not provided
+                                    </span>
+                                }
+                            </span>
+                        </div>
+                    }
+                </div>
+            }
+        </section>
 
 
         <section class="profile-section reviews-section">
@@ -628,6 +681,7 @@
         public bool IsVerified { get; set; }
 
         public List<ServiceDetails> Services { get; set; } = new();
+        public List<BusinessHourDetails> BusinessHours { get; set; } = new();
     }
 
     public class ServiceDetails
@@ -635,6 +689,17 @@
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public string CategoryName { get; set; } = string.Empty;
+    }
+
+    public class BusinessHourDetails
+    {
+        public DayOfWeek DayOfWeek { get; set; }
+
+        public TimeSpan? OpenTime { get; set; }
+
+        public TimeSpan? CloseTime { get; set; }
+
+        public bool IsClosed { get; set; }
     }
 
 

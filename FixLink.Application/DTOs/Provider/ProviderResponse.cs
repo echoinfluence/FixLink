@@ -45,6 +45,8 @@ public class ProviderResponse
     public DateTime UpdatedAt { get; set; }
 
     public List<ServiceSummary> Services { get; set; } = new();
+
+    public List<BusinessHourSummary> BusinessHours { get; set; } = new();
 }
 
 public class ServiceSummary
@@ -54,4 +56,18 @@ public class ServiceSummary
     public string Name { get; set; } = string.Empty;
 
     public string CategoryName { get; set; } = string.Empty;
+}
+
+
+
+
+public class BusinessHourSummary
+{
+    public DayOfWeek DayOfWeek { get; set; }
+
+    public TimeSpan? OpenTime { get; set; }
+
+    public TimeSpan? CloseTime { get; set; }
+
+    public bool IsClosed { get; set; }
 }

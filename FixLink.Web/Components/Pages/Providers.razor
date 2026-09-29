@@ -33,12 +33,33 @@
                 </p>
             </div>
 
-            <div class="search-box">
-                <span>⌕</span>
-                <input type="search"
-                       placeholder="Search by business or location..."
-                       @bind="searchTerm"
-                       @bind:event="oninput" />
+            <div class="directory-filters">
+
+                <div class="search-box">
+                    <span>⌕</span>
+                    <input type="search"
+                           placeholder="Search business or location..."
+                           @bind="searchTerm"
+                           @bind:event="oninput" />
+                </div>
+
+                @if (categories.Count > 0)
+                {
+                    <div class="category-filter">
+                        <select @bind="selectedCategory"
+                                aria-label="Filter by service category">
+                            <option value="">All categories</option>
+
+                            @foreach (var category in categories)
+                            {
+                                <option value="@category.Name" @key="category.Id">
+                                    @category.Name
+                                </option>
+                            }
+                        </select>
+                    </div>
+                }
+
             </div>
         </div>
 
@@ -130,26 +151,50 @@
 
 @code {
     private List<ProviderCard> providers = new();
+    private List<CategoryOption> categories = new();
+
     private string searchTerm = string.Empty;
+    private string selectedCategory = string.Empty;
+
     private bool isLoading = true;
     private string? errorMessage;
 
     private List<ProviderCard> filteredProviders =>
-        providers
-            .Where(p =>
-                string.IsNullOrWhiteSpace(searchTerm) ||
-                p.BusinessName.Contains(searchTerm,
-                    StringComparison.OrdinalIgnoreCase) ||
-                p.City.Contains(searchTerm,
-                    StringComparison.OrdinalIgnoreCase) ||
-                p.Suburb.Contains(searchTerm,
-                    StringComparison.OrdinalIgnoreCase) ||
-                p.Services.Any(s =>
-                    s.Name.Contains(searchTerm,
-                        StringComparison.OrdinalIgnoreCase) ||
-                    s.CategoryName.Contains(searchTerm,
-                        StringComparison.OrdinalIgnoreCase)))
-            .ToList();
+     providers
+         .Where(p =>
+             (
+                 string.IsNullOrWhiteSpace(searchTerm) ||
+                 p.BusinessName.Contains(
+                     searchTerm,
+                     StringComparison.OrdinalIgnoreCase) ||
+                 p.City.Contains(
+                     searchTerm,
+                     StringComparison.OrdinalIgnoreCase) ||
+                 p.Suburb.Contains(
+                     searchTerm,
+                     StringComparison.OrdinalIgnoreCase) ||
+                 p.Province.Contains(
+                     searchTerm,
+                     StringComparison.OrdinalIgnoreCase) ||
+                 p.Services.Any(s =>
+                     s.Name.Contains(
+                         searchTerm,
+                         StringComparison.OrdinalIgnoreCase) ||
+                     s.CategoryName.Contains(
+                         searchTerm,
+                         StringComparison.OrdinalIgnoreCase))
+             )
+             &&
+             (
+                 string.IsNullOrWhiteSpace(selectedCategory) ||
+                 p.Services.Any(s =>
+                     string.Equals(
+                         s.CategoryName,
+                         selectedCategory,
+                         StringComparison.OrdinalIgnoreCase))
+             )
+         )
+         .ToList();
 
     protected override async Task OnInitializedAsync()
     {
@@ -166,10 +211,31 @@
             var client = HttpClientFactory.CreateClient();
             client.BaseAddress = new Uri("https://localhost:7042/");
 
-            var result = await client.GetFromJsonAsync<List<ProviderCard>>(
-                "api/providers");
+            // Load the providers.
+            var result =
+                await client.GetFromJsonAsync<List<ProviderCard>>(
+                    "api/providers");
 
             providers = result ?? new List<ProviderCard>();
+
+            // Load the service categories.
+            // If this fails, the provider directory can still work.
+            try
+            {
+                var categoryResult =
+                    await client.GetFromJsonAsync<List<CategoryOption>>(
+                        "api/categories");
+
+                categories = categoryResult ?? new List<CategoryOption>();
+            }
+            catch (HttpRequestException)
+            {
+                categories = new List<CategoryOption>();
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                categories = new List<CategoryOption>();
+            }
         }
         catch (Exception ex)
         {
@@ -182,6 +248,18 @@
             isLoading = false;
         }
     }
+
+
+    public class CategoryOption
+    {
+        public Guid Id { get; set; }
+
+        public string Name { get; set; } = string.Empty;
+
+        public string? Description { get; set; }
+    }
+
+
 
     private static string GetInitials(string? businessName)
     {

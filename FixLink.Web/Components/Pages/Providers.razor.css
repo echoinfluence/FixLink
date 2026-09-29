@@ -309,3 +309,45 @@
         grid-template-columns: 1fr;
     }
 }
+
+.directory-filters {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    width: min(100%, 650px);
+}
+
+.category-filter {
+    flex: 0 0 200px;
+}
+
+    .category-filter select {
+        width: 100%;
+        min-height: 48px;
+        padding: 0 14px;
+        border: 1px solid #dce6e8;
+        border-radius: 12px;
+        background: #ffffff;
+        color: #102b35;
+        font: inherit;
+        cursor: pointer;
+    }
+
+        .category-filter select:focus {
+            outline: 2px solid #087f70;
+            outline-offset: 2px;
+        }
+
+@media (max-width: 900px) {
+    .directory-filters {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .category-filter {
+        flex: auto;
+        width: 100%;
+    }
+}

@@ -1,0 +1,321 @@
+/* CSS for AdminBusinessHours component */
+
+/* =========================================
+   FIXLINK - ADMIN BUSINESS HOURS
+   ========================================= */
+
+.admin-business-hours-page {
+    --business-primary: #087f73;
+    --business-primary-dark: #06665d;
+    --business-primary-light: #e6f5f2;
+    --business-text: #172b35;
+    --business-muted: #64748b;
+    --business-border: #e2e8f0;
+    --business-surface: #ffffff;
+    width: min(100% - 40px, 1100px);
+    margin: 0 auto;
+    padding: 42px 0 70px;
+    color: var(--business-text);
+}
+
+    /* Page heading */
+
+    .admin-business-hours-page .admin-reviews-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 30px;
+    }
+
+    .admin-business-hours-page .admin-eyebrow {
+        display: inline-block;
+        margin-bottom: 10px;
+        color: var(--business-primary);
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+    }
+
+    .admin-business-hours-page h1 {
+        margin: 0;
+        font-size: clamp(2rem, 4vw, 2.7rem);
+        font-weight: 750;
+        letter-spacing: -0.045em;
+        line-height: 1.15;
+    }
+
+    .admin-business-hours-page .admin-reviews-header p {
+        margin: 12px 0 0;
+        color: var(--business-muted);
+        font-size: 1rem;
+        line-height: 1.6;
+    }
+
+    /* Cards */
+
+    .admin-business-hours-page .admin-review-card {
+        margin-bottom: 24px;
+        padding: 28px;
+        background: var(--business-surface);
+        border: 1px solid var(--business-border);
+        border-radius: 18px;
+        box-shadow: 0 8px 28px rgb(15 23 42 / 5%);
+    }
+
+        .admin-business-hours-page .admin-review-card h2 {
+            margin: 0;
+            font-size: 1.4rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+        }
+
+        .admin-business-hours-page .admin-review-card > p {
+            margin: 8px 0 24px;
+            color: var(--business-muted);
+            line-height: 1.6;
+        }
+
+    /* Provider ID field */
+
+    .admin-business-hours-page label[for="providerId"] {
+        display: block;
+        margin-bottom: 9px;
+        font-size: 0.9rem;
+        font-weight: 650;
+    }
+
+.business-hours-provider-input {
+    display: block;
+    width: 100%;
+    min-height: 46px;
+    margin-bottom: 16px;
+    padding: 11px 14px;
+    color: var(--business-text);
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    font: inherit;
+    font-size: 0.95rem;
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+    .business-hours-provider-input:focus {
+        outline: none;
+        border-color: var(--business-primary);
+        box-shadow: 0 0 0 4px rgb(8 127 115 / 12%);
+    }
+
+/* Buttons */
+
+.business-hours-load-button,
+.admin-business-hours-page .admin-approve-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 11px 20px;
+    color: #fff;
+    background: var(--business-primary);
+    border: 1px solid var(--business-primary);
+    border-radius: 10px;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 160ms ease, border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+    .business-hours-load-button:hover,
+    .admin-business-hours-page .admin-approve-button:hover {
+        background: var(--business-primary-dark);
+        border-color: var(--business-primary-dark);
+        box-shadow: 0 5px 14px rgb(8 127 115 / 18%);
+        transform: translateY(-1px);
+    }
+
+    .business-hours-load-button:focus-visible,
+    .admin-business-hours-page .admin-approve-button:focus-visible {
+        outline: 3px solid rgb(8 127 115 / 30%);
+        outline-offset: 3px;
+    }
+
+    .business-hours-load-button:disabled,
+    .admin-business-hours-page .admin-approve-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+/* Weekly schedule rows */
+
+.admin-business-hours-page .business-hour-row {
+    display: grid;
+    grid-template-columns: minmax(115px, 1fr) 100px minmax(150px, 1fr) minmax(150px, 1fr);
+    align-items: center;
+    gap: 16px;
+    min-height: 76px;
+    padding: 14px 16px;
+    border: 1px solid var(--business-border);
+    border-radius: 12px;
+    background: #fff;
+    transition: background 160ms ease, border-color 160ms ease;
+}
+
+    .admin-business-hours-page .business-hour-row + .business-hour-row {
+        margin-top: 10px;
+    }
+
+    .admin-business-hours-page .business-hour-row:hover {
+        background: #f8fbfb;
+        border-color: #c5e3de;
+    }
+
+    .admin-business-hours-page .business-hour-row > strong {
+        font-size: 0.95rem;
+        font-weight: 700;
+    }
+
+    /* Closed checkbox */
+
+    .admin-business-hours-page .business-hour-row > label {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        color: #475569;
+        font-size: 0.88rem;
+        font-weight: 550;
+    }
+
+    .admin-business-hours-page .business-hour-row input[type="checkbox"] {
+        width: 17px;
+        height: 17px;
+        margin: 0;
+        accent-color: var(--business-primary);
+        cursor: pointer;
+    }
+
+    /* Opening and closing time fields */
+
+    .admin-business-hours-page .business-hour-row input[type="time"] {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        min-height: 42px;
+        margin-top: 7px;
+        padding: 8px 10px;
+        color: var(--business-text);
+        background: #fff;
+        border: 1px solid #cbd5e1;
+        border-radius: 9px;
+        font: inherit;
+        font-size: 0.9rem;
+    }
+
+        .admin-business-hours-page .business-hour-row input[type="time"]:focus {
+            outline: none;
+            border-color: var(--business-primary);
+            box-shadow: 0 0 0 3px rgb(8 127 115 / 12%);
+        }
+
+.admin-business-hours-page .admin-approve-button {
+    margin-top: 24px;
+}
+
+/* Notices */
+
+.admin-business-hours-page .admin-notice {
+    margin: 18px 0 24px;
+    padding: 16px 18px;
+    color: #166534;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 12px;
+    line-height: 1.6;
+}
+
+    .admin-business-hours-page .admin-notice strong {
+        display: block;
+        font-weight: 750;
+    }
+
+    .admin-business-hours-page .admin-notice p {
+        margin: 5px 0 0;
+    }
+
+    .admin-business-hours-page .admin-notice a {
+        display: inline-block;
+        margin-top: 10px;
+        color: var(--business-primary-dark);
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+        .admin-business-hours-page .admin-notice a:hover {
+            text-decoration: underline;
+        }
+
+.admin-business-hours-page .admin-notice-warning {
+    color: #92400e;
+    background: #fffbeb;
+    border-color: #fde68a;
+}
+
+.admin-business-hours-page .admin-notice-error {
+    color: #991b1b;
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+
+/* Responsive layout */
+
+@media (max-width: 760px) {
+    .admin-business-hours-page {
+        width: min(100% - 28px, 600px);
+        padding-top: 28px;
+    }
+
+        .admin-business-hours-page .admin-review-card {
+            padding: 20px;
+            border-radius: 14px;
+        }
+
+        .admin-business-hours-page .business-hour-row {
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 14px;
+            padding: 16px;
+        }
+
+            .admin-business-hours-page .business-hour-row > strong {
+                grid-column: 1 / -1;
+                font-size: 1rem;
+            }
+
+            .admin-business-hours-page .business-hour-row > label:first-of-type {
+                grid-column: 1 / -1;
+            }
+
+            .admin-business-hours-page .business-hour-row input[type="time"] {
+                font-size: 0.85rem;
+            }
+
+        .admin-business-hours-page .admin-approve-button,
+        .business-hours-load-button {
+            width: 100%;
+        }
+}
+
+@media (max-width: 420px) {
+    .admin-business-hours-page {
+        width: calc(100% - 20px);
+    }
+
+        .admin-business-hours-page .admin-review-card {
+            padding: 16px;
+        }
+
+        .admin-business-hours-page .business-hour-row {
+            gap: 12px;
+            padding: 13px;
+        }
+}

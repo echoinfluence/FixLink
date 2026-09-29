@@ -28,6 +28,7 @@ public class ProvidersController : ControllerBase
             .Include(p => p.ProviderServices)
                 .ThenInclude(ps => ps.Service)
                     .ThenInclude(s => s.ServiceCategory)
+                    .Include(p => p.BusinessHours)
             .OrderBy(p => p.BusinessName)
             .ToListAsync();
 
@@ -45,6 +46,7 @@ public class ProvidersController : ControllerBase
             .Include(p => p.ProviderServices)
                 .ThenInclude(ps => ps.Service)
                     .ThenInclude(s => s.ServiceCategory)
+                    .Include(p => p.BusinessHours)
             .FirstOrDefaultAsync(p =>
                 p.Id == id &&
                 p.IsActive &&
@@ -242,6 +244,7 @@ public class ProvidersController : ControllerBase
             .Include(p => p.ProviderServices)
                 .ThenInclude(ps => ps.Service)
                     .ThenInclude(s => s.ServiceCategory)
+            .Include(p => p.BusinessHours)
             .FirstAsync(p => p.Id == id);
 
         return Ok(MapToResponse(updatedProvider));
@@ -314,7 +317,20 @@ public class ProvidersController : ControllerBase
                     Name = ps.Service.Name,
                     CategoryName = ps.Service.ServiceCategory.Name
                 })
-                .ToList()
+                .ToList(),
+
+
+
+                BusinessHours = provider.BusinessHours
+                    .OrderBy(h => h.DayOfWeek)
+                    .Select(h => new BusinessHourSummary
+                    {
+                        DayOfWeek = h.DayOfWeek,
+                        OpenTime = h.OpenTime,
+                        CloseTime = h.CloseTime,
+                        IsClosed = h.IsClosed
+                    })
+                    .ToList()
         };
     }
 }
