@@ -1,0 +1,320 @@
+/* CSS for AdminDashboard component */
+
+/* =========================================
+   FIXLINK ADMIN DASHBOARD
+   ========================================= */
+
+.admin-dashboard-page {
+    --primary: #087f73;
+    --primary-dark: #06665d;
+    --primary-light: #e6f5f2;
+    --text: #172b35;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --surface: #ffffff;
+    width: min(1100px, calc(100% - 40px));
+    margin: 0 auto;
+    padding: 42px 0 64px;
+    color: var(--text);
+}
+
+    /* Header */
+
+    .admin-dashboard-page .admin-dashboard-header {
+        margin-bottom: 30px;
+    }
+
+    .admin-dashboard-page .admin-eyebrow {
+        display: inline-block;
+        margin-bottom: 10px;
+        color: var(--primary);
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+    }
+
+    .admin-dashboard-page h1 {
+        margin: 0;
+        font-size: clamp(2rem, 4vw, 2.8rem);
+        font-weight: 750;
+        letter-spacing: -0.045em;
+        line-height: 1.15;
+    }
+
+    .admin-dashboard-page p {
+        color: var(--muted);
+        line-height: 1.65;
+    }
+
+    .admin-dashboard-page .admin-dashboard-header p {
+        margin: 12px 0 0;
+        font-size: 1rem;
+    }
+
+    /* Welcome panel */
+
+    .admin-dashboard-page .dashboard-welcome {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 24px;
+        padding: 24px 28px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: 0 8px 28px rgb(15 23 42 / 4%);
+    }
+
+        .admin-dashboard-page .dashboard-welcome h2 {
+            margin: 0;
+            font-size: 1.35rem;
+            font-weight: 700;
+        }
+
+        .admin-dashboard-page .dashboard-welcome p {
+            margin: 6px 0 0;
+            font-size: 0.92rem;
+        }
+
+    /* Statistics */
+
+    .admin-dashboard-page .dashboard-stats {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
+        margin-bottom: 42px;
+    }
+
+    .admin-dashboard-page .dashboard-stat-card {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        min-height: 140px;
+        padding: 26px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: 0 8px 28px rgb(15 23 42 / 4%);
+        transition: transform 160ms ease, box-shadow 160ms ease;
+    }
+
+        .admin-dashboard-page .dashboard-stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgb(15 23 42 / 7%);
+        }
+
+    .admin-dashboard-page .dashboard-stat-icon {
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        width: 54px;
+        height: 54px;
+        color: var(--primary);
+        background: var(--primary-light);
+        border-radius: 14px;
+        font-size: 1.5rem;
+    }
+
+    .admin-dashboard-page .dashboard-stat-card span {
+        display: block;
+        margin-bottom: 7px;
+        color: var(--muted);
+        font-size: 0.9rem;
+    }
+
+    .admin-dashboard-page .dashboard-stat-card strong {
+        display: block;
+        font-size: 2rem;
+        font-weight: 750;
+        line-height: 1.1;
+    }
+
+    /* Management section */
+
+    .admin-dashboard-page .dashboard-management {
+        margin-top: 8px;
+    }
+
+    .admin-dashboard-page .dashboard-section-heading {
+        margin-bottom: 22px;
+    }
+
+        .admin-dashboard-page .dashboard-section-heading h2 {
+            margin: 0;
+            font-size: 1.65rem;
+            font-weight: 750;
+            letter-spacing: -0.03em;
+        }
+
+        .admin-dashboard-page .dashboard-section-heading p {
+            margin: 8px 0 0;
+        }
+
+    .admin-dashboard-page .dashboard-management-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 20px;
+    }
+
+    .admin-dashboard-page .dashboard-management-card {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        min-height: 245px;
+        padding: 26px;
+        color: var(--text);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        text-decoration: none;
+        box-shadow: 0 8px 28px rgb(15 23 42 / 4%);
+        transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+    }
+
+        .admin-dashboard-page .dashboard-management-card:hover {
+            transform: translateY(-4px);
+            border-color: #9dd4cc;
+            box-shadow: 0 14px 32px rgb(15 23 42 / 8%);
+        }
+
+    .admin-dashboard-page .dashboard-card-icon {
+        display: grid;
+        place-items: center;
+        width: 48px;
+        height: 48px;
+        margin-bottom: 20px;
+        color: var(--primary);
+        background: var(--primary-light);
+        border-radius: 13px;
+        font-size: 1.4rem;
+    }
+
+    .admin-dashboard-page .dashboard-management-card h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 750;
+    }
+
+    .admin-dashboard-page .dashboard-management-card p {
+        margin: 10px 0 20px;
+        font-size: 0.9rem;
+    }
+
+    .admin-dashboard-page .dashboard-card-link {
+        margin-top: auto;
+        color: var(--primary);
+        font-size: 0.9rem;
+        font-weight: 750;
+    }
+
+    .admin-dashboard-page .dashboard-management-card:hover .dashboard-card-link {
+        color: var(--primary-dark);
+    }
+
+    /* Buttons */
+
+    .admin-dashboard-page .dashboard-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        padding: 11px 20px;
+        color: #fff;
+        background: var(--primary);
+        border: 1px solid var(--primary);
+        border-radius: 10px;
+        font: inherit;
+        font-size: 0.9rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 160ms ease, transform 160ms ease;
+    }
+
+        .admin-dashboard-page .dashboard-button:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+
+        .admin-dashboard-page .dashboard-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+    /* Loading and error messages */
+
+    .admin-dashboard-page .dashboard-loading,
+    .admin-dashboard-page .dashboard-notice {
+        margin-bottom: 24px;
+        padding: 22px 24px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        line-height: 1.6;
+    }
+
+        .admin-dashboard-page .dashboard-notice h2 {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+
+        .admin-dashboard-page .dashboard-notice p {
+            margin: 8px 0;
+        }
+
+        .admin-dashboard-page .dashboard-notice a {
+            color: var(--primary);
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+            .admin-dashboard-page .dashboard-notice a:hover {
+                text-decoration: underline;
+            }
+
+    .admin-dashboard-page .dashboard-error {
+        color: #991b1b;
+        background: #fef2f2;
+        border-color: #fecaca;
+    }
+
+/* Responsive */
+
+@media (max-width: 850px) {
+    .admin-dashboard-page .dashboard-management-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 600px) {
+    .admin-dashboard-page {
+        width: calc(100% - 28px);
+        padding: 28px 0 44px;
+    }
+
+        .admin-dashboard-page .dashboard-stats,
+        .admin-dashboard-page .dashboard-management-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .admin-dashboard-page .dashboard-welcome {
+            align-items: flex-start;
+            flex-direction: column;
+            padding: 22px;
+        }
+
+            .admin-dashboard-page .dashboard-welcome .dashboard-button {
+                width: 100%;
+            }
+
+        .admin-dashboard-page .dashboard-stat-card {
+            min-height: 115px;
+            padding: 22px;
+        }
+
+        .admin-dashboard-page .dashboard-management-card {
+            min-height: 210px;
+            padding: 22px;
+        }
+}

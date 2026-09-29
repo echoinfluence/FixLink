@@ -22,6 +22,10 @@
 
             @if (AuthSession.IsAdmin)
             {
+                <NavLink href="/admin" Match="NavLinkMatch.All">
+                    Admin Dashboard
+                </NavLink>
+
                 <NavLink href="/admin/reviews">
                     Admin Reviews
                 </NavLink>

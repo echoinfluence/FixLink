@@ -29,17 +29,36 @@
     else
     {
         <div class="admin-review-card">
-            <label for="providerId">Provider ID</label>
+            <label for="providerId">Select a provider</label>
 
-            <input id="providerId"
-                   class="business-hours-provider-input"
-                   @bind="providerId"
-                   placeholder="Enter the provider GUID" />
+            <select id="providerId"
+                    class="business-hours-provider-input"
+                    @bind="providerId"
+                    @bind:after="OnProviderChanged"
+                    disabled="@isLoadingProviders">
+
+                <option value="">-- Select a provider --</option>
+
+                @foreach (var provider in providers)
+                {
+                    <option value="@provider.Id">
+                        @provider.BusinessName
+                        @if (!string.IsNullOrWhiteSpace(provider.City))
+                        {
+                            @($" — {provider.City}")
+                        }
+                    </option>
+                }
+            </select>
 
             <button class="business-hours-load-button"
                     @onclick="LoadBusinessHours"
-                    disabled="@isLoading">
-                @(isLoading ? "Loading..." : "Load business hours")
+                    disabled="@(isLoading || isLoadingProviders || string.IsNullOrWhiteSpace(providerId))">
+                @(isLoading
+                    ? "Loading..."
+                    : isLoadingProviders
+                        ? "Loading providers..."
+                        : "Load business hours")
             </button>
         </div>
 
@@ -112,6 +131,8 @@
 
 @code {
     private string providerId = string.Empty;
+    private List<ProviderOption> providers = new();
+    private bool isLoadingProviders;
 
     private List<BusinessHourInput> businessHours = new();
 
@@ -133,6 +154,47 @@
         DayOfWeek.Saturday,
         DayOfWeek.Sunday
     };
+
+
+    private async Task LoadProviders()
+    {
+        isLoadingProviders = true;
+        errorMessage = null;
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient();
+            client.BaseAddress = new Uri("https://localhost:7042/");
+
+            providers = await client.GetFromJsonAsync<List<ProviderOption>>(
+                "api/providers") ?? new();
+
+            if (providers.Count == 0)
+            {
+                errorMessage = "No active, published providers were found.";
+            }
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Could not connect to the API. Make sure FixLink.Api is running.";
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            errorMessage = "The API returned provider data that the page could not read.";
+        }
+        finally
+        {
+            isLoadingProviders = false;
+        }
+    }
+
+    private void OnProviderChanged()
+    {
+        hoursLoaded = false;
+        businessHours.Clear();
+        errorMessage = null;
+        successMessage = null;
+    }
 
     private async Task LoadBusinessHours()
     {
@@ -336,6 +398,12 @@
         try
         {
             await AuthSession.RestoreTokenAsync();
+
+            if (AuthSession.IsAuthenticated)
+            {
+                await LoadProviders();
+            }
+
             StateHasChanged();
         }
         catch (JSException)
@@ -374,5 +442,15 @@
         public TimeSpan? OpenTime { get; set; }
         public TimeSpan? CloseTime { get; set; }
         public bool IsClosed { get; set; }
+    }
+
+
+
+    public class ProviderOption
+    {
+        public Guid Id { get; set; }
+        public string BusinessName { get; set; } = string.Empty;
+        public string City { get; set; } = string.Empty;
+        public string Province { get; set; } = string.Empty;
     }
 }

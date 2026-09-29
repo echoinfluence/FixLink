@@ -1,0 +1,238 @@
+﻿@page "/admin"
+@using System.Net
+@using System.Net.Http.Headers
+@using System.Text.Json
+@using FixLink.Web.Services
+@using Microsoft.JSInterop
+@inject IHttpClientFactory HttpClientFactory
+@inject AuthSession AuthSession
+
+<PageTitle>Admin Dashboard | FixLink</PageTitle>
+
+<div class="admin-dashboard-page">
+    <div class="admin-dashboard-header">
+        <div>
+            <span class="admin-eyebrow">FIXLINK ADMIN</span>
+            <h1>Admin dashboard</h1>
+            <p>Manage your providers and keep FixLink running smoothly.</p>
+        </div>
+    </div>
+
+    @if (!AuthSession.IsAuthenticated)
+    {
+        <div class="dashboard-notice">
+            <h2>Login required</h2>
+            <p>Please log in with your admin account to access the dashboard.</p>
+            <a href="/login">Go to login →</a>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="dashboard-notice dashboard-error">
+            <h2>Unable to load dashboard</h2>
+            <p>@errorMessage</p>
+
+            <button class="dashboard-button"
+                    @onclick="LoadDashboard"
+                    disabled="@isLoading">
+                Try again
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="dashboard-welcome">
+            <div>
+                <h2>Welcome back!</h2>
+                <p>Here's an overview of your FixLink platform.</p>
+            </div>
+            <button class="dashboard-button"
+                    @onclick="LoadDashboard"
+                    disabled="@isLoading">
+                @(isLoading ? "Refreshing..." : "Refresh")
+            </button>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="dashboard-loading">
+                Loading dashboard statistics...
+            </div>
+        }
+        else
+        {
+            <div class="dashboard-stats">
+                <article class="dashboard-stat-card">
+                    <div class="dashboard-stat-icon">🏢</div>
+                    <div>
+                        <span>Published providers</span>
+                        <strong>@publishedProviderCount</strong>
+                    </div>
+                </article>
+
+                <article class="dashboard-stat-card">
+                    <div class="dashboard-stat-icon">★</div>
+                    <div>
+                        <span>Pending reviews</span>
+                        <strong>@pendingReviewCount</strong>
+                    </div>
+                </article>
+            </div>
+        }
+
+        <section class="dashboard-management">
+            <div class="dashboard-section-heading">
+                <span class="admin-eyebrow">MANAGEMENT</span>
+                <h2>Manage FixLink</h2>
+                <p>Choose an area to manage.</p>
+            </div>
+
+            <div class="dashboard-management-grid">
+                <a class="dashboard-management-card"
+                   href="/admin/providers">
+                    <span class="dashboard-card-icon">🏢</span>
+                    <h3>Provider management</h3>
+                    <p>Create, edit and manage provider profiles.</p>
+                    <span class="dashboard-card-link">Manage providers →</span>
+                </a>
+
+                <a class="dashboard-management-card"
+                   href="/admin/reviews">
+                    <span class="dashboard-card-icon">★</span>
+                    <h3>Review management</h3>
+                    <p>Review customer feedback before it appears publicly.</p>
+                    <span class="dashboard-card-link">Manage reviews →</span>
+                </a>
+
+                <a class="dashboard-management-card"
+                   href="/admin/business-hours">
+                    <span class="dashboard-card-icon">◷</span>
+                    <h3>Business hours</h3>
+                    <p>Update providers' weekly opening schedules.</p>
+                    <span class="dashboard-card-link">Manage hours →</span>
+                </a>
+            </div>
+        </section>
+    }
+</div>
+
+@code {
+    private int publishedProviderCount;
+    private int pendingReviewCount;
+    private bool isLoading;
+    private string? errorMessage;
+
+    private async Task LoadDashboard()
+    {
+        if (!AuthSession.IsAuthenticated ||
+            string.IsNullOrWhiteSpace(AuthSession.Token))
+        {
+            errorMessage = "Your session is unavailable. Please log in again.";
+            return;
+        }
+
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient();
+            client.BaseAddress = new Uri("https://localhost:7042/");
+            client.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue(
+                    "Bearer", AuthSession.Token);
+
+            // Count active and published providers.
+            using var providersResponse =
+                await client.GetAsync("api/providers");
+
+            if (!providersResponse.IsSuccessStatusCode)
+            {
+                errorMessage =
+                    $"Could not load providers. API returned {(int)providersResponse.StatusCode}.";
+                return;
+            }
+
+            var providersJson =
+                await providersResponse.Content.ReadAsStringAsync();
+
+            using var providersDocument =
+                JsonDocument.Parse(providersJson);
+
+            publishedProviderCount =
+                providersDocument.RootElement.GetArrayLength();
+
+            // Count reviews awaiting admin approval.
+            using var reviewsResponse =
+                await client.GetAsync("api/reviews/pending");
+
+            if (reviewsResponse.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                errorMessage =
+                    "Your session has expired. Please log in again.";
+                return;
+            }
+
+            if (reviewsResponse.StatusCode == HttpStatusCode.Forbidden)
+            {
+                errorMessage =
+                    "Your account does not have Admin permission.";
+                return;
+            }
+
+            if (!reviewsResponse.IsSuccessStatusCode)
+            {
+                errorMessage =
+                    $"Could not load pending reviews. API returned {(int)reviewsResponse.StatusCode}.";
+                return;
+            }
+
+            var reviewsJson =
+                await reviewsResponse.Content.ReadAsStringAsync();
+
+            using var reviewsDocument =
+                JsonDocument.Parse(reviewsJson);
+
+            pendingReviewCount =
+                reviewsDocument.RootElement.GetArrayLength();
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage =
+                "Could not connect to the API. Make sure FixLink.Api is running.";
+        }
+        catch (JsonException)
+        {
+            errorMessage =
+                "The API returned data that the dashboard could not read.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        try
+        {
+            await AuthSession.RestoreTokenAsync();
+
+            if (AuthSession.IsAuthenticated)
+            {
+                await LoadDashboard();
+            }
+
+            StateHasChanged();
+        }
+        catch (JSException)
+        {
+            errorMessage =
+                "Unable to restore your session. Please log in again.";
+            StateHasChanged();
+        }
+    }
+}
