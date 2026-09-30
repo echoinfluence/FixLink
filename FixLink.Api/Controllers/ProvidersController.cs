@@ -37,6 +37,30 @@ public class ProvidersController : ControllerBase
         return Ok(response);
     }
 
+
+
+    // GET: api/providers/admin
+    [Authorize(Roles = "Admin")]
+    [HttpGet("admin")]
+    public async Task<ActionResult<IEnumerable<ProviderResponse>>>
+        GetAllProvidersForAdmin()
+    {
+        var providers = await _context.Providers
+            .AsNoTracking()
+            .Include(p => p.ProviderServices)
+                .ThenInclude(ps => ps.Service)
+                    .ThenInclude(s => s.ServiceCategory)
+            .Include(p => p.BusinessHours)
+            .OrderBy(p => p.BusinessName)
+            .ToListAsync();
+
+        var response = providers.Select(MapToResponse);
+
+        return Ok(response);
+    }
+
+
+
     // GET: api/providers/{id}
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<ProviderResponse>> GetProvider(Guid id)

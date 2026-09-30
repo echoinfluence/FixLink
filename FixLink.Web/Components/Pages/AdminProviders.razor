@@ -1,0 +1,281 @@
+﻿@page "/admin/providers"
+
+@using System.Net
+@using System.Net.Http.Headers
+@using System.Net.Http.Json
+@using FixLink.Web.Services
+@using Microsoft.JSInterop
+
+@inject IHttpClientFactory HttpClientFactory
+@inject AuthSession AuthSession
+
+<PageTitle>Manage Providers | FixLink Admin</PageTitle>
+
+<div class="admin-business-hours-page">
+
+    <div class="admin-reviews-header">
+        <div>
+            <span class="admin-eyebrow">FIXLINK ADMIN</span>
+            <h1>Manage providers</h1>
+            <p>View and manage all service providers on FixLink.</p>
+        </div>
+    </div>
+
+    @if (!AuthSession.IsAuthenticated)
+    {
+        <div class="admin-notice admin-notice-warning">
+            <strong>Login required</strong>
+            <p>Please log in with your admin account to manage providers.</p>
+            <a href="/login">Go to login →</a>
+        </div>
+    }
+    else
+    {
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="admin-notice admin-notice-error">
+                <strong>Unable to load providers</strong>
+                <p>@errorMessage</p>
+
+                @if (showLoginLink)
+                {
+                    <a href="/login">Log in again →</a>
+                }
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="admin-notice">
+                <strong>@successMessage</strong>
+            </div>
+        }
+
+        <div class="admin-review-card">
+
+            <div class="providers-list-header">
+                <div>
+                    <h2>All providers</h2>
+                    <p>
+                        @providers.Count provider(s) found
+                    </p>
+                </div>
+
+                <button class="business-hours-load-button"
+                        @onclick="LoadProviders"
+                        disabled="@isLoading">
+                    @(isLoading ? "Loading..." : "Refresh")
+                </button>
+            </div>
+
+            @if (isLoading)
+            {
+                <p>Loading providers...</p>
+            }
+            else if (providers.Count == 0 &&
+                     string.IsNullOrWhiteSpace(errorMessage))
+            {
+                <p>No providers were found.</p>
+            }
+            else if (providers.Count > 0)
+            {
+                <div class="providers-admin-list">
+
+                    @foreach (var provider in providers)
+                    {
+                        <div class="provider-admin-item"
+                             @key="provider.Id">
+
+                            <div class="provider-admin-details">
+                                <h3>@provider.BusinessName</h3>
+
+                                <p>
+                                    @if (!string.IsNullOrWhiteSpace(provider.City))
+                                    {
+                                        @provider.City
+                                    }
+
+                                    @if (!string.IsNullOrWhiteSpace(provider.Province))
+                                    {
+                                        @($" , {provider.Province}")
+                                    }
+                                </p>
+
+                                <div class="provider-admin-statuses">
+                                    <span class="@GetStatusClass(provider.IsActive)">
+                                        @(provider.IsActive ? "Active" : "Inactive")
+                                    </span>
+
+                                    <span class="@GetStatusClass(provider.IsPublished)">
+                                        @(provider.IsPublished ? "Published" : "Unpublished")
+                                    </span>
+
+                                    @if (provider.IsVerified)
+                                    {
+                                        <span class="provider-status-verified">
+                                            Verified
+                                        </span>
+                                    }
+                                </div>
+
+                                <p class="provider-admin-id">
+                                    ID: @provider.Id
+                                </p>
+                            </div>
+
+                            <div class="provider-admin-actions">
+                                <button class="business-hours-load-button"
+                                        disabled>
+                                    Edit — next step
+                                </button>
+                            </div>
+
+                        </div>
+                    }
+
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<ProviderOption> providers = new();
+
+    private bool isLoading;
+    private bool showLoginLink;
+
+    private string? errorMessage;
+    private string? successMessage;
+
+    private async Task LoadProviders()
+    {
+        isLoading = true;
+        errorMessage = null;
+        successMessage = null;
+        showLoginLink = false;
+
+        try
+        {
+            var client = CreateAuthenticatedClient();
+
+            using var response = await client.GetAsync(
+                "api/providers/admin");
+
+            if (!await HandleAuthErrors(response))
+                return;
+
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage =
+                    $"The API returned {(int)response.StatusCode}.";
+
+                return;
+            }
+
+            providers = await response.Content
+                .ReadFromJsonAsync<List<ProviderOption>>() ?? new();
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage =
+                "Could not connect to the API. Make sure FixLink.Api is running.";
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            errorMessage =
+                "The API returned provider data that the page could not read.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private HttpClient CreateAuthenticatedClient()
+    {
+        var client = HttpClientFactory.CreateClient();
+
+        client.BaseAddress = new Uri("https://localhost:7042/");
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                AuthSession.Token);
+
+        return client;
+    }
+
+    private async Task<bool> HandleAuthErrors(
+        HttpResponseMessage response)
+    {
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            errorMessage =
+                "Your session has expired. Please log in again.";
+
+            showLoginLink = true;
+            return false;
+        }
+
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            errorMessage =
+                "Your account does not have Admin permission.";
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private static string GetStatusClass(bool isEnabled)
+    {
+        return isEnabled
+            ? "provider-status-active"
+            : "provider-status-inactive";
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        try
+        {
+            await AuthSession.RestoreTokenAsync();
+
+            if (AuthSession.IsAuthenticated)
+            {
+                await LoadProviders();
+            }
+
+            StateHasChanged();
+        }
+        catch (JSException)
+        {
+            errorMessage =
+                "Unable to restore your session. Please log in again.";
+
+            showLoginLink = true;
+            StateHasChanged();
+        }
+    }
+
+    public class ProviderOption
+    {
+        public Guid Id { get; set; }
+
+        public string BusinessName { get; set; } = string.Empty;
+
+        public string? City { get; set; }
+
+        public string? Province { get; set; }
+
+        public bool IsActive { get; set; }
+
+        public bool IsPublished { get; set; }
+
+        public bool IsVerified { get; set; }
+    }
+}
