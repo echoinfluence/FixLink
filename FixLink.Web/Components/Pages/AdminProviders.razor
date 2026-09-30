@@ -96,8 +96,13 @@
                 @if (showCreateForm)
                 {
                     <div class="provider-create-form">
-                        <h2>Add a new provider</h2>
-                        <p>Enter the business details and select its services.</p>
+                        <h2>@(isEditMode ? "Edit provider" : "Add a new provider")</h2>
+
+                        <p>
+                            @(isEditMode
+                                ? "Update the business details, services and status."
+                                : "Enter the business details and select its services.")
+                        </p>
 
                         <div class="provider-form-grid">
                             <label>
@@ -214,6 +219,29 @@
                             </label>
                         </div>
 
+                        @* placeholder  *@
+                        @if (isEditMode)
+                        {
+                            <div class="provider-form-option">
+                                <input id="providerActive"
+                                       type="checkbox"
+                                       @bind="newProvider.IsActive" />
+
+                                <label for="providerActive">Provider is active</label>
+                            </div>
+
+                            <div class="provider-form-option">
+                                <input id="providerPublished"
+                                       type="checkbox"
+                                       @bind="newProvider.IsPublished" />
+
+                                <label for="providerPublished">Provider is published</label>
+                            </div>
+                        }
+
+
+
+
                         <div class="provider-service-picker">
                             <h3>Services *</h3>
                             <p>Select at least one service for this provider.</p>
@@ -262,12 +290,27 @@
                             </div>
                         }
 
-                        <button class="business-hours-load-button"
-                                @onclick="CreateProvider"
-                                disabled="@isCreating">
+                        <div class="provider-admin-actions">
+                            <button class="business-hours-load-button"
+                                    @onclick="SaveProvider"
+                                    disabled="@isCreating">
 
-                            @(isCreating ? "Creating provider..." : "Create provider")
-                        </button>
+                                @(isCreating
+                                    ? "Saving..."
+                                    : isEditMode
+                                        ? "Save changes"
+                                        : "Create provider")
+                            </button>
+
+                            @if (isEditMode)
+                            {
+                                <button class="business-hours-load-button"
+                                        @onclick="CancelEdit"
+                                        disabled="@isCreating">
+                                    Cancel
+                                </button>
+                            }
+                        </div>
                     </div>
                 }
 
@@ -317,8 +360,8 @@
 
                             <div class="provider-admin-actions">
                                 <button class="business-hours-load-button"
-                                        disabled>
-                                    Edit — next step
+                                        @onclick="() => EditProvider(provider.Id)">
+                                    Edit provider
                                 </button>
                             </div>
 
@@ -353,6 +396,9 @@
 
     private string? errorMessage;
     private string? successMessage;
+
+    private bool isEditMode;
+    private Guid? editingProviderId;
 
     private async Task LoadProviders()
     {
@@ -632,6 +678,387 @@
 
 
 
+    private async Task EditProvider(Guid id)
+    {
+        errorMessage = null;
+        createErrorMessage = null;
+        successMessage = null;
+        showLoginLink = false;
+
+        // Load services before selecting the provider's existing services.
+        if (serviceOptions.Count == 0)
+        {
+            await LoadServices();
+        }
+
+        if (serviceOptions.Count == 0)
+        {
+            errorMessage = createErrorMessage
+                ?? "Could not load the available services.";
+
+            showCreateForm = true;
+            return;
+        }
+
+        try
+        {
+            var client = CreateAuthenticatedClient();
+
+            using var response = await client.GetAsync(
+                "api/providers/admin");
+
+            if (!await HandleAuthErrors(response))
+                return;
+
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage =
+                    $"Could not load providers. API returned {(int)response.StatusCode}.";
+                return;
+            }
+
+            var allProviders = await response.Content
+                .ReadFromJsonAsync<List<ProviderOption>>() ?? new();
+
+            var provider = allProviders.FirstOrDefault(x => x.Id == id);
+
+            if (provider is null)
+            {
+                errorMessage = "The selected provider could not be found.";
+                return;
+            }
+
+            newProvider = new CreateProviderInput
+            {
+                BusinessName = provider.BusinessName,
+                Description = provider.Description,
+                PhoneNumber = provider.PhoneNumber,
+                WhatsAppNumber = provider.WhatsAppNumber,
+                Email = provider.Email,
+                Website = provider.Website,
+
+                AddressLine1 = provider.AddressLine1,
+                AddressLine2 = provider.AddressLine2,
+                Suburb = provider.Suburb,
+                City = provider.City,
+                Province = provider.Province,
+                PostalCode = provider.PostalCode,
+
+                IsVerified = provider.IsVerified,
+                IsActive = provider.IsActive,
+                IsPublished = provider.IsPublished
+            };
+
+            yearsInBusinessText =
+                provider.YearsInBusiness?.ToString() ?? string.Empty;
+
+            latitudeText = provider.Latitude?.ToString(
+                System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
+
+            longitudeText = provider.Longitude?.ToString(
+                System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
+
+            foreach (var service in serviceOptions)
+            {
+                service.IsSelected =
+                    provider.Services.Any(x => x.Id == service.Id);
+            }
+
+            editingProviderId = id;
+            isEditMode = true;
+            showCreateForm = true;
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Could not connect to the API.";
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            errorMessage = "The API returned provider data that could not be read.";
+        }
+    }
+
+
+
+    private async Task SaveProvider()
+    {
+        if (isEditMode)
+        {
+            await UpdateProvider();
+        }
+        else
+        {
+            await CreateProvider();
+        }
+    }
+
+
+    private async Task UpdateProvider()
+    {
+        createErrorMessage = null;
+        errorMessage = null;
+        showLoginLink = false;
+
+        if (!editingProviderId.HasValue)
+        {
+            createErrorMessage = "No provider is selected for editing.";
+            return;
+        }
+
+        var selectedServiceIds = serviceOptions
+            .Where(x => x.IsSelected)
+            .Select(x => x.Id)
+            .ToList();
+
+        if (selectedServiceIds.Count == 0)
+        {
+            createErrorMessage = "Select at least one service.";
+            return;
+        }
+
+        if (!ValidateProviderFields())
+            return;
+
+        if (!TryGetOptionalValues(
+                out var years,
+                out var latitude,
+                out var longitude))
+            return;
+
+        isCreating = true;
+
+        try
+        {
+            var request = new UpdateProviderRequest
+            {
+                BusinessName = newProvider.BusinessName.Trim(),
+                Description = newProvider.Description.Trim(),
+                PhoneNumber = newProvider.PhoneNumber.Trim(),
+                WhatsAppNumber = EmptyToNull(newProvider.WhatsAppNumber),
+                Email = EmptyToNull(newProvider.Email),
+                Website = EmptyToNull(newProvider.Website),
+
+                AddressLine1 = newProvider.AddressLine1.Trim(),
+                AddressLine2 = EmptyToNull(newProvider.AddressLine2),
+                Suburb = newProvider.Suburb.Trim(),
+                City = newProvider.City.Trim(),
+                Province = newProvider.Province.Trim(),
+                PostalCode = newProvider.PostalCode.Trim(),
+
+                Latitude = latitude,
+                Longitude = longitude,
+                YearsInBusiness = years,
+
+                IsVerified = newProvider.IsVerified,
+                IsPublished = newProvider.IsPublished,
+                IsActive = newProvider.IsActive,
+
+                ServiceIds = selectedServiceIds
+            };
+
+            var client = CreateAuthenticatedClient();
+
+            using var response = await client.PutAsJsonAsync(
+                $"api/providers/{editingProviderId}",
+                request);
+
+            if (!await HandleAuthErrors(response))
+            {
+                createErrorMessage = errorMessage;
+                errorMessage = null;
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+
+                createErrorMessage =
+                    $"Could not update provider. API returned {(int)response.StatusCode}: {body}";
+                return;
+            }
+
+            showCreateForm = false;
+            isEditMode = false;
+            editingProviderId = null;
+
+            successMessage = "Provider updated successfully.";
+
+            await LoadProviders();
+        }
+        catch (HttpRequestException)
+        {
+            createErrorMessage = "Could not connect to the API.";
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            createErrorMessage = "The API returned data that could not be read.";
+        }
+        finally
+        {
+            isCreating = false;
+        }
+    }
+
+
+
+
+
+
+    private bool ValidateProviderFields()
+    {
+        var missing = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(newProvider.BusinessName))
+            missing.Add("Business name");
+
+        if (string.IsNullOrWhiteSpace(newProvider.Description))
+            missing.Add("Description");
+
+        if (string.IsNullOrWhiteSpace(newProvider.PhoneNumber))
+            missing.Add("Phone number");
+
+        if (string.IsNullOrWhiteSpace(newProvider.AddressLine1))
+            missing.Add("Address line 1");
+
+        if (string.IsNullOrWhiteSpace(newProvider.Suburb))
+            missing.Add("Suburb");
+
+        if (string.IsNullOrWhiteSpace(newProvider.City))
+            missing.Add("City");
+
+        if (string.IsNullOrWhiteSpace(newProvider.Province))
+            missing.Add("Province");
+
+        if (string.IsNullOrWhiteSpace(newProvider.PostalCode))
+            missing.Add("Postal code");
+
+        if (missing.Count > 0)
+        {
+            createErrorMessage =
+                "Please complete: " + string.Join(", ", missing) + ".";
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool TryGetOptionalValues(
+        out int? years,
+        out double? latitude,
+        out double? longitude)
+    {
+        years = null;
+        latitude = null;
+        longitude = null;
+
+        if (!string.IsNullOrWhiteSpace(yearsInBusinessText))
+        {
+            if (!int.TryParse(yearsInBusinessText, out var parsedYears) ||
+                parsedYears < 0 || parsedYears > 200)
+            {
+                createErrorMessage =
+                    "Years in business must be between 0 and 200.";
+                return false;
+            }
+
+            years = parsedYears;
+        }
+
+        if (!string.IsNullOrWhiteSpace(latitudeText))
+        {
+            if (!double.TryParse(
+                    latitudeText,
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out var parsedLatitude) ||
+                parsedLatitude < -90 || parsedLatitude > 90)
+            {
+                createErrorMessage = "Enter a valid latitude between -90 and 90.";
+                return false;
+            }
+
+            latitude = parsedLatitude;
+        }
+
+        if (!string.IsNullOrWhiteSpace(longitudeText))
+        {
+            if (!double.TryParse(
+                    longitudeText,
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out var parsedLongitude) ||
+                parsedLongitude < -180 || parsedLongitude > 180)
+            {
+                createErrorMessage = "Enter a valid longitude between -180 and 180.";
+                return false;
+            }
+
+            longitude = parsedLongitude;
+        }
+
+        if (latitude.HasValue != longitude.HasValue)
+        {
+            createErrorMessage =
+                "Enter both coordinates, or leave both blank.";
+            return false;
+        }
+
+        return true;
+    }
+
+
+
+
+
+
+
+    public class UpdateProviderRequest
+    {
+        public string BusinessName { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
+
+        public string? WhatsAppNumber { get; set; }
+        public string? Email { get; set; }
+        public string? Website { get; set; }
+
+        public string AddressLine1 { get; set; } = string.Empty;
+        public string? AddressLine2 { get; set; }
+        public string Suburb { get; set; } = string.Empty;
+        public string City { get; set; } = string.Empty;
+        public string Province { get; set; } = string.Empty;
+        public string PostalCode { get; set; } = string.Empty;
+
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public int? YearsInBusiness { get; set; }
+
+        public bool IsVerified { get; set; }
+        public bool IsPublished { get; set; }
+        public bool IsActive { get; set; }
+
+        public List<Guid> ServiceIds { get; set; } = new();
+    }
+
+
+
+
+
+    private void CancelEdit()
+    {
+        showCreateForm = false;
+        isEditMode = false;
+        editingProviderId = null;
+
+        createErrorMessage = null;
+        successMessage = null;
+    }
+
+
+
+
     private static string? EmptyToNull(string? value)
     {
         return string.IsNullOrWhiteSpace(value)
@@ -671,6 +1098,8 @@
         public string PostalCode { get; set; } = string.Empty;
 
         public bool IsVerified { get; set; }
+        public bool IsPublished { get; set; } = true;
+        public bool IsActive { get; set; } = true;
     }
 
     public class CreateProviderRequest
@@ -787,15 +1216,28 @@
         public Guid Id { get; set; }
 
         public string BusinessName { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
 
-        public string? City { get; set; }
+        public string PhoneNumber { get; set; } = string.Empty;
+        public string? WhatsAppNumber { get; set; }
+        public string? Email { get; set; }
+        public string? Website { get; set; }
 
-        public string? Province { get; set; }
+        public string AddressLine1 { get; set; } = string.Empty;
+        public string? AddressLine2 { get; set; }
+        public string Suburb { get; set; } = string.Empty;
+        public string City { get; set; } = string.Empty;
+        public string Province { get; set; } = string.Empty;
+        public string PostalCode { get; set; } = string.Empty;
 
-        public bool IsActive { get; set; }
-
-        public bool IsPublished { get; set; }
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public int? YearsInBusiness { get; set; }
 
         public bool IsVerified { get; set; }
+        public bool IsPublished { get; set; }
+        public bool IsActive { get; set; }
+
+        public List<ServiceOption> Services { get; set; } = new();
     }
 }
