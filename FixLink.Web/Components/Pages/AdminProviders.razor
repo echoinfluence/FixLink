@@ -61,11 +61,24 @@
                     </p>
                 </div>
 
-                <button class="business-hours-load-button"
+                @* <button class="business-hours-load-button"
                         @onclick="LoadProviders"
                         disabled="@isLoading">
                     @(isLoading ? "Loading..." : "Refresh")
-                </button>
+                </button> *@
+
+                <div class="provider-admin-actions">
+                    <button class="business-hours-load-button"
+                            @onclick="ToggleCreateForm">
+                        @(showCreateForm ? "Cancel" : "+ Add provider")
+                    </button>
+
+                    <button class="business-hours-load-button"
+                            @onclick="LoadProviders"
+                            disabled="@isLoading">
+                        @(isLoading ? "Loading..." : "Refresh")
+                    </button>
+                </div>
             </div>
 
             @if (isLoading)
@@ -79,6 +92,185 @@
             }
             else if (providers.Count > 0)
             {
+
+                @if (showCreateForm)
+                {
+                    <div class="provider-create-form">
+                        <h2>Add a new provider</h2>
+                        <p>Enter the business details and select its services.</p>
+
+                        <div class="provider-form-grid">
+                            <label>
+                                Business name *
+                                <input @bind="newProvider.BusinessName"
+                                       maxlength="200"
+                                       placeholder="e.g. FixLink Plumbing" />
+                            </label>
+
+                            <label>
+                                Phone number *
+                                <input @bind="newProvider.PhoneNumber"
+                                       maxlength="30"
+                                       placeholder="Business contact number" />
+                            </label>
+
+                            <label>
+                                WhatsApp number
+                                <input @bind="newProvider.WhatsAppNumber"
+                                       maxlength="30" />
+                            </label>
+
+                            <label>
+                                Email
+                                <input type="email"
+                                       @bind="newProvider.Email"
+                                       maxlength="320" />
+                            </label>
+
+                            <label>
+                                Website
+                                <input type="url"
+                                       @bind="newProvider.Website"
+                                       maxlength="500"
+                                       placeholder="https://" />
+                            </label>
+
+                            <label>
+                                Years in business
+                                <input type="number"
+                                       @bind="yearsInBusinessText"
+                                       min="0"
+                                       max="200" />
+                            </label>
+
+                            <label class="provider-form-full">
+                                Description *
+                                <textarea @bind="newProvider.Description"
+                                          maxlength="4000"
+                                          rows="4"
+                                          placeholder="Describe the business and its services."></textarea>
+                            </label>
+
+                            <label>
+                                Address line 1 *
+                                <input @bind="newProvider.AddressLine1"
+                                       maxlength="250" />
+                            </label>
+
+                            <label>
+                                Address line 2
+                                <input @bind="newProvider.AddressLine2"
+                                       maxlength="250" />
+                            </label>
+
+                            <label>
+                                Suburb *
+                                <input @bind="newProvider.Suburb"
+                                       maxlength="100" />
+                            </label>
+
+                            <label>
+                                City *
+                                <input @bind="newProvider.City"
+                                       maxlength="100" />
+                            </label>
+
+                            <label>
+                                Province *
+                                <input @bind="newProvider.Province"
+                                       maxlength="100" />
+                            </label>
+
+                            <label>
+                                Postal code *
+                                <input @bind="newProvider.PostalCode"
+                                       maxlength="20" />
+                            </label>
+
+                            <label>
+                                Latitude
+                                <input type="number"
+                                       step="any"
+                                       @bind="latitudeText"
+                                       placeholder="Optional" />
+                            </label>
+
+                            <label>
+                                Longitude
+                                <input type="number"
+                                       step="any"
+                                       @bind="longitudeText"
+                                       placeholder="Optional" />
+                            </label>
+                        </div>
+
+                        <div class="provider-form-option">
+                            <input id="newProviderVerified"
+                                   type="checkbox"
+                                   @bind="newProvider.IsVerified" />
+
+                            <label for="newProviderVerified">
+                                Mark this provider as verified
+                            </label>
+                        </div>
+
+                        <div class="provider-service-picker">
+                            <h3>Services *</h3>
+                            <p>Select at least one service for this provider.</p>
+
+                            @if (isLoadingServices)
+                            {
+                                <p>Loading services...</p>
+                            }
+                            else if (serviceOptions.Count == 0)
+                            {
+                                <p>No services are available.</p>
+                            }
+                            else
+                            {
+                                @foreach (var group in serviceOptions
+                                    .GroupBy(x => new { x.CategoryId, x.CategoryName }))
+                                {
+                                    <div class="provider-service-category"
+                                         @key="group.Key.CategoryId">
+
+                                        <h4>@group.Key.CategoryName</h4>
+
+                                        <div class="provider-service-options">
+                                            @foreach (var service in group)
+                                            {
+                                                <label class="provider-service-option"
+                                                       @key="service.Id">
+
+                                                    <input type="checkbox"
+                                                           @bind="service.IsSelected" />
+
+                                                    <span>@service.Name</span>
+                                                </label>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(createErrorMessage))
+                        {
+                            <div class="admin-notice admin-notice-error">
+                                <strong>Could not create provider</strong>
+                                <p>@createErrorMessage</p>
+                            </div>
+                        }
+
+                        <button class="business-hours-load-button"
+                                @onclick="CreateProvider"
+                                disabled="@isCreating">
+
+                            @(isCreating ? "Creating provider..." : "Create provider")
+                        </button>
+                    </div>
+                }
+
                 <div class="providers-admin-list">
 
                     @foreach (var provider in providers)
@@ -142,6 +334,20 @@
 @code {
     private List<ProviderOption> providers = new();
 
+    private bool showCreateForm;
+    private bool isCreating;
+    private bool isLoadingServices;
+
+    private string? createErrorMessage;
+
+    private string yearsInBusinessText = string.Empty;
+    private string latitudeText = string.Empty;
+    private string longitudeText = string.Empty;
+
+    private CreateProviderInput newProvider = new();
+
+    private List<ServiceOption> serviceOptions = new();
+
     private bool isLoading;
     private bool showLoginLink;
 
@@ -191,6 +397,320 @@
             isLoading = false;
         }
     }
+
+
+    private async Task LoadServices()
+    {
+        isLoadingServices = true;
+        createErrorMessage = null;
+
+        try
+        {
+            var client = CreateAuthenticatedClient();
+
+            using var response = await client.GetAsync("api/services");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                createErrorMessage =
+                    $"Could not load services. API returned {(int)response.StatusCode}.";
+                return;
+            }
+
+            serviceOptions = await response.Content
+                .ReadFromJsonAsync<List<ServiceOption>>() ?? new();
+        }
+        catch (HttpRequestException)
+        {
+            createErrorMessage =
+                "Could not connect to the API while loading services.";
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            createErrorMessage =
+                "The API returned service data that could not be read.";
+        }
+        finally
+        {
+            isLoadingServices = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CreateProvider()
+    {
+        createErrorMessage = null;
+        errorMessage = null;
+        showLoginLink = false;
+
+        var missingFields = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(newProvider.BusinessName))
+            missingFields.Add("Business name");
+
+        if (string.IsNullOrWhiteSpace(newProvider.Description))
+            missingFields.Add("Description");
+
+        if (string.IsNullOrWhiteSpace(newProvider.PhoneNumber))
+            missingFields.Add("Phone number");
+
+        if (string.IsNullOrWhiteSpace(newProvider.AddressLine1))
+            missingFields.Add("Address line 1");
+
+        if (string.IsNullOrWhiteSpace(newProvider.Suburb))
+            missingFields.Add("Suburb");
+
+        if (string.IsNullOrWhiteSpace(newProvider.City))
+            missingFields.Add("City");
+
+        if (string.IsNullOrWhiteSpace(newProvider.Province))
+            missingFields.Add("Province");
+
+        if (string.IsNullOrWhiteSpace(newProvider.PostalCode))
+            missingFields.Add("Postal code");
+
+        if (missingFields.Count > 0)
+        {
+            createErrorMessage =
+                "Please complete: " + string.Join(", ", missingFields) + ".";
+
+            return;
+        }
+
+        var selectedServiceIds = serviceOptions
+            .Where(x => x.IsSelected)
+            .Select(x => x.Id)
+            .ToList();
+
+        if (selectedServiceIds.Count == 0)
+        {
+            createErrorMessage =
+                "Please select at least one service.";
+            return;
+        }
+
+        int? years = null;
+
+        if (!string.IsNullOrWhiteSpace(yearsInBusinessText))
+        {
+            if (!int.TryParse(yearsInBusinessText, out var parsedYears) ||
+                parsedYears < 0 || parsedYears > 200)
+            {
+                createErrorMessage =
+                    "Years in business must be between 0 and 200.";
+                return;
+            }
+
+            years = parsedYears;
+        }
+
+        double? latitude = null;
+        double? longitude = null;
+
+        if (!string.IsNullOrWhiteSpace(latitudeText))
+        {
+            if (!double.TryParse(
+                    latitudeText,
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out var parsedLatitude) ||
+                parsedLatitude < -90 || parsedLatitude > 90)
+            {
+                createErrorMessage =
+                    "Latitude must be between -90 and 90.";
+                return;
+            }
+
+            latitude = parsedLatitude;
+        }
+
+        if (!string.IsNullOrWhiteSpace(longitudeText))
+        {
+            if (!double.TryParse(
+                    longitudeText,
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out var parsedLongitude) ||
+                parsedLongitude < -180 || parsedLongitude > 180)
+            {
+                createErrorMessage =
+                    "Longitude must be between -180 and 180.";
+                return;
+            }
+
+            longitude = parsedLongitude;
+        }
+
+        if (latitude.HasValue != longitude.HasValue)
+        {
+            createErrorMessage =
+                "Enter both latitude and longitude, or leave both blank.";
+            return;
+        }
+
+        isCreating = true;
+
+        try
+        {
+            var client = CreateAuthenticatedClient();
+
+            var request = new CreateProviderRequest
+            {
+                BusinessName = newProvider.BusinessName.Trim(),
+                Description = newProvider.Description.Trim(),
+                PhoneNumber = newProvider.PhoneNumber.Trim(),
+                WhatsAppNumber = EmptyToNull(newProvider.WhatsAppNumber),
+                Email = EmptyToNull(newProvider.Email),
+                Website = EmptyToNull(newProvider.Website),
+
+                AddressLine1 = newProvider.AddressLine1.Trim(),
+                AddressLine2 = EmptyToNull(newProvider.AddressLine2),
+                Suburb = newProvider.Suburb.Trim(),
+                City = newProvider.City.Trim(),
+                Province = newProvider.Province.Trim(),
+                PostalCode = newProvider.PostalCode.Trim(),
+
+                Latitude = latitude,
+                Longitude = longitude,
+                YearsInBusiness = years,
+                IsVerified = newProvider.IsVerified,
+                ServiceIds = selectedServiceIds
+            };
+
+            using var response = await client.PostAsJsonAsync(
+                "api/providers",
+                request);
+
+            if (!await HandleAuthErrors(response))
+            {
+                createErrorMessage = errorMessage;
+                errorMessage = null;
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+
+                createErrorMessage =
+                    $"The API returned {(int)response.StatusCode}: {body}";
+                return;
+            }
+
+            newProvider = new CreateProviderInput();
+            yearsInBusinessText = string.Empty;
+            latitudeText = string.Empty;
+            longitudeText = string.Empty;
+
+            foreach (var service in serviceOptions)
+            {
+                service.IsSelected = false;
+            }
+
+            showCreateForm = false;
+            successMessage = "Provider created successfully.";
+
+            await LoadProviders();
+        }
+        catch (HttpRequestException)
+        {
+            createErrorMessage =
+                "Could not connect to the API. Make sure FixLink.Api is running.";
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            createErrorMessage =
+                "The API returned data that could not be read.";
+        }
+        finally
+        {
+            isCreating = false;
+        }
+    }
+
+
+
+
+
+    private static string? EmptyToNull(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
+    }
+
+
+
+
+    private void ToggleCreateForm()
+    {
+        showCreateForm = !showCreateForm;
+        createErrorMessage = null;
+
+        if (showCreateForm && serviceOptions.Count == 0)
+        {
+            _ = LoadServices();
+        }
+    }
+
+
+    public class CreateProviderInput
+    {
+        public string BusinessName { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
+        public string? WhatsAppNumber { get; set; }
+        public string? Email { get; set; }
+        public string? Website { get; set; }
+
+        public string AddressLine1 { get; set; } = string.Empty;
+        public string? AddressLine2 { get; set; }
+        public string Suburb { get; set; } = string.Empty;
+        public string City { get; set; } = string.Empty;
+        public string Province { get; set; } = string.Empty;
+        public string PostalCode { get; set; } = string.Empty;
+
+        public bool IsVerified { get; set; }
+    }
+
+    public class CreateProviderRequest
+    {
+        public string BusinessName { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
+        public string? WhatsAppNumber { get; set; }
+        public string? Email { get; set; }
+        public string? Website { get; set; }
+
+        public string AddressLine1 { get; set; } = string.Empty;
+        public string? AddressLine2 { get; set; }
+        public string Suburb { get; set; } = string.Empty;
+        public string City { get; set; } = string.Empty;
+        public string Province { get; set; } = string.Empty;
+        public string PostalCode { get; set; } = string.Empty;
+
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public int? YearsInBusiness { get; set; }
+
+        public bool IsVerified { get; set; }
+        public List<Guid> ServiceIds { get; set; } = new();
+    }
+
+    public class ServiceOption
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+
+        public Guid CategoryId { get; set; }
+        public string CategoryName { get; set; } = string.Empty;
+
+        public bool IsSelected { get; set; }
+    }
+
+
+
 
     private HttpClient CreateAuthenticatedClient()
     {
