@@ -64,6 +64,9 @@
                 </div>
             </div>
 
+
+           
+
             <div class="profile-content">
 
                 <section class="profile-section">
@@ -184,6 +187,26 @@
 
             </div>
         </section>
+
+
+        @if (providerImages.Count > 0)
+        {
+            <section class="profile-section provider-gallery">
+                <h2>Photos</h2>
+
+                <div class="provider-gallery-grid">
+                    @foreach (var image in providerImages)
+                    {
+                        <div class="provider-gallery-item" @key="image.Id">
+                            <img src="@GetImageUrl(image.BlobUrl)"
+                                 alt="Photo of @provider.BusinessName"
+                                 loading="lazy" />
+                        </div>
+                    }
+                </div>
+            </section>
+        }
+
 
         <section class="profile-section business-hours-section">
             <h2>Opening hours</h2>
@@ -429,11 +452,16 @@
     }
 </div>
 
+
+
+
+
 @code {
     [Parameter]
     public Guid Id { get; set; }
 
     private ProviderDetailsResponse? provider;
+    private List<ProviderImageResponse> providerImages = new();
     private bool isLoading = true;
     private string? errorMessage;
 
@@ -470,9 +498,9 @@
          
             if (provider is not null)
             {
+                await LoadProviderImages();
                 await LoadReviews();
             }
-
             if (provider is null)
             {
                 errorMessage = "This provider could not be found.";
@@ -497,6 +525,43 @@
         {
             reviewModel.Rating = rating;
         }
+    }
+
+
+
+    private async Task LoadProviderImages()
+    {
+        providerImages = new();
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient();
+            client.BaseAddress = new Uri("https://localhost:7042/");
+
+            var result =
+                await client.GetFromJsonAsync<List<ProviderImageResponse>>(
+                    $"api/providers/{Id}/images");
+
+            providerImages = result?
+                .OrderBy(image => image.DisplayOrder)
+                .ToList() ?? new List<ProviderImageResponse>();
+        }
+        catch (Exception)
+        {
+            // Images are optional, so the rest of the profile
+            // should still load if the image request fails.
+            providerImages = new();
+        }
+    }
+
+    private static string GetImageUrl(string blobUrl)
+    {
+        if (string.IsNullOrWhiteSpace(blobUrl))
+            return string.Empty;
+
+        return new Uri(
+            new Uri("https://localhost:7042/"),
+            blobUrl.TrimStart('/')).ToString();
     }
 
 
@@ -739,6 +804,27 @@
             isLoadingReviews = false;
         }
     }
+
+
+
+
+
+
+    public class ProviderImageResponse
+    {
+        public Guid Id { get; set; }
+        public Guid ProviderId { get; set; }
+        public string BlobName { get; set; } = string.Empty;
+        public string BlobUrl { get; set; } = string.Empty;
+        public string? Caption { get; set; }
+        public int DisplayOrder { get; set; }
+        public bool IsPrimary { get; set; }
+        public DateTime UploadedAt { get; set; }
+    }
+
+
+
+
 
 
 }

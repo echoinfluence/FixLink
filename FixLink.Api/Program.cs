@@ -1,4 +1,5 @@
 using FixLink.Infrastructure.Data;
+using FixLink.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
 using FixLink.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -9,6 +10,22 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+
+
+// Local provider image storage
+var webRootPath = builder.Environment.WebRootPath
+    ?? Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
+
+var providerImagesPath = Path.Combine(
+    webRootPath,
+    "uploads",
+    "providers");
+
+Directory.CreateDirectory(providerImagesPath);
+
+builder.Services.AddSingleton<IFileStorageService>(
+    _ => new LocalFileStorageService(providerImagesPath));
+
 
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -133,6 +150,8 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+
+app.UseStaticFiles();
 
 app.UseHttpsRedirection();
 
