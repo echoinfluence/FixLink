@@ -391,3 +391,20 @@
         align-items: stretch;
     }
 }
+
+
+.provider-deactivate-button {
+    background: #fff;
+    color: #b42318;
+    border: 1px solid #f0b4b0;
+}
+
+    .provider-deactivate-button:hover:not(:disabled) {
+        background: #fff1f0;
+        border-color: #b42318;
+    }
+
+    .provider-deactivate-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }

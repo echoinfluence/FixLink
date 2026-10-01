@@ -8,6 +8,8 @@
 
 @inject IHttpClientFactory HttpClientFactory
 @inject AuthSession AuthSession
+@inject IJSRuntime JS
+
 
 <PageTitle>Manage Providers | FixLink Admin</PageTitle>
 
@@ -363,6 +365,17 @@
                                         @onclick="() => EditProvider(provider.Id)">
                                     Edit provider
                                 </button>
+
+                                @if (provider.IsActive)
+                                {
+                                    <button class="business-hours-load-button provider-deactivate-button"
+                                            @onclick="() => DeactivateProvider(provider.Id, provider.BusinessName)"
+                                            disabled="@(deactivatingProviderId == provider.Id)">
+                                        @(deactivatingProviderId == provider.Id
+                                            ? "Deactivating..."
+                                            : "Deactivate")
+                                    </button>
+                                }
                             </div>
 
                         </div>
@@ -382,6 +395,8 @@
     private bool isLoadingServices;
 
     private string? createErrorMessage;
+
+    private Guid? deactivatingProviderId;
 
     private string yearsInBusinessText = string.Empty;
     private string latitudeText = string.Empty;
@@ -673,6 +688,74 @@
             isCreating = false;
         }
     }
+
+
+
+
+
+    private async Task DeactivateProvider(Guid id, string businessName)
+    {
+        errorMessage = null;
+        createErrorMessage = null;
+        successMessage = null;
+        showLoginLink = false;
+
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm",
+            $"Are you sure you want to deactivate {businessName}? " +
+            "It will no longer appear in public provider searches.");
+
+        if (!confirmed)
+            return;
+
+        deactivatingProviderId = id;
+
+        try
+        {
+            var client = CreateAuthenticatedClient();
+
+            using var response = await client.DeleteAsync(
+                $"api/providers/{id}");
+
+            if (!await HandleAuthErrors(response))
+                return;
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+
+                errorMessage =
+                    $"Could not deactivate provider. API returned " +
+                    $"{(int)response.StatusCode}: {body}";
+
+                return;
+            }
+
+            await LoadProviders();
+
+            if (string.IsNullOrWhiteSpace(errorMessage))
+            {
+                successMessage =
+                    $"{businessName} was deactivated successfully.";
+            }
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Could not connect to the API.";
+        }
+        catch (JSException)
+        {
+            errorMessage = "Could not display the confirmation dialog.";
+        }
+        finally
+        {
+            deactivatingProviderId = null;
+        }
+    }
+
+
+
+
 
 
 
