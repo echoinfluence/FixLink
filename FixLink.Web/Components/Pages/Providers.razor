@@ -63,9 +63,11 @@
 
                 <div class="category-filter">
                     <select @bind="selectedProvince"
-                            @bind:after="LoadProviders"
+                            @bind:after="OnProvinceChanged"
                             aria-label="Filter by province">
+
                         <option value="">All provinces</option>
+
                         <option value="Gauteng">Gauteng</option>
                         <option value="KwaZulu-Natal">KwaZulu-Natal</option>
                         <option value="Western Cape">Western Cape</option>
@@ -75,8 +77,30 @@
                         <option value="Mpumalanga">Mpumalanga</option>
                         <option value="Northern Cape">Northern Cape</option>
                         <option value="North West">North West</option>
+
                     </select>
                 </div>
+
+                @if (!string.IsNullOrWhiteSpace(selectedProvince))
+                {
+                    <div class="category-filter">
+                        <select @bind="selectedCity"
+                                @bind:after="LoadProviders"
+                                aria-label="Filter by city"
+                                disabled="@isLoading">
+
+                            <option value="">All cities</option>
+
+                            @foreach (var city in availableCities)
+                            {
+                                <option value="@city">
+                                    @city
+                                </option>
+                            }
+
+                        </select>
+                    </div>
+                }
 
 
             </div>
@@ -168,6 +192,8 @@
     </section>
 </div>
 
+
+
 @code {
     private List<ProviderCard> providers = new();
     private List<CategoryOption> categories = new();
@@ -176,6 +202,10 @@
     private string selectedCategory = string.Empty;
 
     private string selectedProvince = string.Empty;
+
+    private string selectedCity = string.Empty;
+    private List<string> availableCities = new();
+
 
     private bool isLoading = true;
     private string? errorMessage;
@@ -255,6 +285,12 @@
                     $"province={Uri.EscapeDataString(selectedProvince.Trim())}");
             }
 
+            if (!string.IsNullOrWhiteSpace(selectedCity))
+            {
+                queryParams.Add(
+                    $"city={Uri.EscapeDataString(selectedCity.Trim())}");
+            }
+
             var url = "api/providers";
 
             if (queryParams.Count > 0)
@@ -288,6 +324,50 @@
 
 
 
+
+    private async Task OnProvinceChanged()
+    {
+        selectedCity = string.Empty;
+        availableCities.Clear();
+
+        if (string.IsNullOrWhiteSpace(selectedProvince))
+        {
+            await LoadProviders();
+            return;
+        }
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient();
+            client.BaseAddress = new Uri("https://localhost:7042/");
+
+            var url =
+                $"api/providers?province={Uri.EscapeDataString(selectedProvince.Trim())}";
+
+            var provinceProviders =
+                await client.GetFromJsonAsync<List<ProviderCard>>(url)
+                ?? new();
+
+            availableCities = provinceProviders
+                .Select(p => p.City)
+                .Where(city => !string.IsNullOrWhiteSpace(city))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(city => city)
+                .ToList();
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage =
+                "Could not connect to the API. Make sure FixLink.Api is running.";
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            errorMessage =
+                "The API returned provider data that the page could not read.";
+        }
+
+        await LoadProviders();
+    }
 
 
 
