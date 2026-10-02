@@ -75,6 +75,169 @@ public class ProviderImagesController : ControllerBase
 
 
 
+    // PUT: api/providers/{providerId}/images/{imageId}/primary
+    [Authorize(Roles = "Admin")]
+    [HttpPut("{imageId:guid}/primary")]
+    public async Task<IActionResult> SetPrimaryImage(
+        Guid providerId,
+        Guid imageId,
+        CancellationToken cancellationToken)
+    {
+        var images = await _context.ProviderImages
+            .Where(image => image.ProviderId == providerId)
+            .ToListAsync(cancellationToken);
+
+        if (images.Count == 0)
+        {
+            var providerExists = await _context.Providers
+                .AnyAsync(
+                    provider => provider.Id == providerId,
+                    cancellationToken);
+
+            if (!providerExists)
+            {
+                return NotFound(new
+                {
+                    message = "Provider not found."
+                });
+            }
+
+            return NotFound(new
+            {
+                message = "This provider has no images."
+            });
+        }
+
+        var selectedImage = images
+            .FirstOrDefault(image => image.Id == imageId);
+
+        if (selectedImage == null)
+        {
+            return NotFound(new
+            {
+                message = "Image not found for this provider."
+            });
+        }
+
+        foreach (var image in images)
+        {
+            image.IsPrimary = image.Id == imageId;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return Ok(new
+        {
+            message = "Primary image updated successfully.",
+            imageId = selectedImage.Id,
+            selectedImage.IsPrimary
+        });
+    }
+
+
+
+
+
+
+    // DELETE: api/providers/{providerId}/images/{imageId}
+    [Authorize(Roles = "Admin")]
+    [HttpDelete("{imageId:guid}")]
+    public async Task<IActionResult> DeleteImage(
+        Guid providerId,
+        Guid imageId,
+        CancellationToken cancellationToken)
+    {
+        var image = await _context.ProviderImages
+            .FirstOrDefaultAsync(
+                item => item.Id == imageId &&
+                        item.ProviderId == providerId,
+                cancellationToken);
+
+        if (image == null)
+        {
+            return NotFound(new
+            {
+                message = "Image not found for this provider."
+            });
+        }
+
+        var wasPrimary = image.IsPrimary;
+        var fileName = image.BlobName;
+
+        _context.ProviderImages.Remove(image);
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        await _fileStorage.DeleteAsync(
+            fileName,
+            cancellationToken);
+
+        // If the primary image was deleted, promote another image.
+        if (wasPrimary)
+        {
+            var nextImage = await _context.ProviderImages
+                .Where(item => item.ProviderId == providerId)
+                .OrderBy(item => item.DisplayOrder)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (nextImage != null)
+            {
+                nextImage.IsPrimary = true;
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+        }
+
+        return Ok(new
+        {
+            message = "Image deleted successfully."
+        });
+    }
+
+
+
+
+
+
+
+    // GET: api/providers/{providerId}/images/admin
+    [Authorize(Roles = "Admin")]
+    [HttpGet("admin")]
+    public async Task<IActionResult> GetProviderImagesAdmin(
+        Guid providerId,
+        CancellationToken cancellationToken)
+    {
+        var providerExists = await _context.Providers
+            .AnyAsync(
+                provider => provider.Id == providerId,
+                cancellationToken);
+
+        if (!providerExists)
+        {
+            return NotFound(new
+            {
+                message = "Provider not found."
+            });
+        }
+
+        var images = await _context.ProviderImages
+            .Where(image => image.ProviderId == providerId)
+            .OrderBy(image => image.DisplayOrder)
+            .Select(image => new
+            {
+                image.Id,
+                image.ProviderId,
+                image.BlobName,
+                image.BlobUrl,
+                image.Caption,
+                image.DisplayOrder,
+                image.IsPrimary,
+                image.UploadedAt
+            })
+            .ToListAsync(cancellationToken);
+
+        return Ok(images);
+    }
+
 
 
 

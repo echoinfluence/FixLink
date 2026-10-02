@@ -543,7 +543,8 @@
                     $"api/providers/{Id}/images");
 
             providerImages = result?
-                .OrderBy(image => image.DisplayOrder)
+                .OrderByDescending(image => image.IsPrimary)
+                .ThenBy(image => image.DisplayOrder)
                 .ToList() ?? new List<ProviderImageResponse>();
         }
         catch (Exception)
