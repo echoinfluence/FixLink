@@ -20,16 +20,102 @@ public class ProvidersController : ControllerBase
 
     // GET: api/providers
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<ProviderResponse>>> GetProviders()
+    public async Task<ActionResult<IEnumerable<ProviderResponse>>> GetProviders(
+        [FromQuery] string? search = null,
+        [FromQuery] Guid? categoryId = null,
+        [FromQuery] Guid? serviceId = null,
+        [FromQuery] string? city = null,
+        [FromQuery] string? province = null,
+        [FromQuery] bool? verified = null,
+        [FromQuery] string? sort = null)
     {
-        var providers = await _context.Providers
+        var query = _context.Providers
             .AsNoTracking()
-            .Where(p => p.IsActive && p.IsPublished)
+            .Where(p => p.IsActive && p.IsPublished);
+
+        // Search
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchTerm = search.Trim();
+
+            query = query.Where(p =>
+                p.BusinessName.Contains(searchTerm) ||
+                p.Description.Contains(searchTerm) ||
+                p.Suburb.Contains(searchTerm) ||
+                p.City.Contains(searchTerm) ||
+                p.Province.Contains(searchTerm) ||
+                p.ProviderServices.Any(ps =>
+                    ps.Service.Name.Contains(searchTerm)));
+        }
+
+        // Filter by service category
+        if (categoryId.HasValue)
+        {
+            query = query.Where(p =>
+                p.ProviderServices.Any(ps =>
+                    ps.Service.ServiceCategoryId == categoryId.Value));
+        }
+
+        // Filter by specific service
+        if (serviceId.HasValue)
+        {
+            query = query.Where(p =>
+                p.ProviderServices.Any(ps =>
+                    ps.ServiceId == serviceId.Value));
+        }
+
+        // Filter by city
+        if (!string.IsNullOrWhiteSpace(city))
+        {
+            var cityFilter = city.Trim();
+
+            query = query.Where(p =>
+                p.City.Contains(cityFilter));
+        }
+
+        // Filter by province
+        if (!string.IsNullOrWhiteSpace(province))
+        {
+            var provinceFilter = province.Trim();
+
+            query = query.Where(p =>
+                p.Province.Contains(provinceFilter));
+        }
+
+        // Filter by verified status
+        if (verified.HasValue)
+        {
+            query = query.Where(p =>
+                p.IsVerified == verified.Value);
+        }
+
+        // Sorting
+        query = sort?.ToLowerInvariant() switch
+        {
+            "verified" =>
+                query
+                    .OrderByDescending(p => p.IsVerified)
+                    .ThenBy(p => p.BusinessName),
+
+            "newest" =>
+                query
+                    .OrderByDescending(p => p.CreatedAt)
+                    .ThenBy(p => p.BusinessName),
+
+            "oldest" =>
+                query
+                    .OrderBy(p => p.CreatedAt)
+                    .ThenBy(p => p.BusinessName),
+
+            _ =>
+                query.OrderBy(p => p.BusinessName)
+        };
+
+        var providers = await query
             .Include(p => p.ProviderServices)
                 .ThenInclude(ps => ps.Service)
                     .ThenInclude(s => s.ServiceCategory)
-                    .Include(p => p.BusinessHours)
-            .OrderBy(p => p.BusinessName)
+            .Include(p => p.BusinessHours)
             .ToListAsync();
 
         var response = providers.Select(MapToResponse);

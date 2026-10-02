@@ -60,6 +60,25 @@
                     </div>
                 }
 
+
+                <div class="category-filter">
+                    <select @bind="selectedProvince"
+                            @bind:after="LoadProviders"
+                            aria-label="Filter by province">
+                        <option value="">All provinces</option>
+                        <option value="Gauteng">Gauteng</option>
+                        <option value="KwaZulu-Natal">KwaZulu-Natal</option>
+                        <option value="Western Cape">Western Cape</option>
+                        <option value="Eastern Cape">Eastern Cape</option>
+                        <option value="Free State">Free State</option>
+                        <option value="Limpopo">Limpopo</option>
+                        <option value="Mpumalanga">Mpumalanga</option>
+                        <option value="Northern Cape">Northern Cape</option>
+                        <option value="North West">North West</option>
+                    </select>
+                </div>
+
+
             </div>
         </div>
 
@@ -156,8 +175,12 @@
     private string searchTerm = string.Empty;
     private string selectedCategory = string.Empty;
 
+    private string selectedProvince = string.Empty;
+
     private bool isLoading = true;
     private string? errorMessage;
+
+   
 
     private List<ProviderCard> filteredProviders =>
      providers
@@ -201,6 +224,13 @@
         await LoadProviders();
     }
 
+
+
+
+
+
+
+
     private async Task LoadProviders()
     {
         isLoading = true;
@@ -211,43 +241,56 @@
             var client = HttpClientFactory.CreateClient();
             client.BaseAddress = new Uri("https://localhost:7042/");
 
-            // Load the providers.
-            var result =
-                await client.GetFromJsonAsync<List<ProviderCard>>(
-                    "api/providers");
+            var queryParams = new List<string>();
 
-            providers = result ?? new List<ProviderCard>();
-
-            // Load the service categories.
-            // If this fails, the provider directory can still work.
-            try
+            if (!string.IsNullOrWhiteSpace(searchTerm))
             {
-                var categoryResult =
-                    await client.GetFromJsonAsync<List<CategoryOption>>(
-                        "api/categories");
-
-                categories = categoryResult ?? new List<CategoryOption>();
+                queryParams.Add(
+                    $"search={Uri.EscapeDataString(searchTerm.Trim())}");
             }
-            catch (HttpRequestException)
+
+            if (!string.IsNullOrWhiteSpace(selectedProvince))
             {
-                categories = new List<CategoryOption>();
+                queryParams.Add(
+                    $"province={Uri.EscapeDataString(selectedProvince.Trim())}");
             }
-            catch (System.Text.Json.JsonException)
+
+            var url = "api/providers";
+
+            if (queryParams.Count > 0)
             {
-                categories = new List<CategoryOption>();
+                url += "?" + string.Join("&", queryParams);
+            }
+
+            providers = await client.GetFromJsonAsync<List<ProviderCard>>(
+                url) ?? new();
+
+            if (providers.Count == 0)
+            {
+                errorMessage = "No providers matched your search.";
             }
         }
-        catch (Exception ex)
+        catch (HttpRequestException)
         {
             errorMessage =
-                "Please check that the FixLink API is running. " +
-                "Details: " + ex.Message;
+                "Could not connect to the API. Make sure FixLink.Api is running.";
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            errorMessage =
+                "The API returned provider data that the page could not read.";
         }
         finally
         {
             isLoading = false;
         }
     }
+
+
+
+
+
+
 
 
     public class CategoryOption
